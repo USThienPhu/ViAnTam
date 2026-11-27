@@ -125,7 +125,7 @@ Lưu lịch sử vào MongoDB (scam_checks)
 ## 10. Tài liệu dự án & Tổ chức nhóm (3 người - 7 ngày)
 
 Dự án được tổ chức theo hướng **AI-Driven Development** với các tài liệu đi kèm:
-- [`docs/spec.md`](docs/spec.md): Đặc tả kỹ thuật toàn diện (Architecture, Schemas, API & LLM Contract, Logic VietQR/Link/Scoring, UI Tree) để sinh code và đồng bộ giữa các thành viên.
+- Thư mục [`docs/`](docs/architecture-spec.md): Bộ tài liệu đặc tả phân tách theo từng module (`architecture-spec.md`, `auth-spec.md`, `chat-spec.md`, `ai-scam-detection-spec.md`, `safety-admin-spec.md`, `practice-mode-spec.md`) để AI coding agent đọc đúng ngữ cảnh khi phát triển.
 - [`use_case.md`](use_case.md): Toàn bộ bảng Use Case và đặc tả chi tiết luồng nghiệp vụ.
 - [`task.md`](task.md): Bảng phân chia công việc chi tiết theo 7 ngày cho 3 thành viên (1 AI/LLM + 2 Web/Backend).
 
