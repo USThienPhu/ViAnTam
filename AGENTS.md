@@ -1,6 +1,9 @@
 # Hướng dẫn dành cho AI Agents (`AGENTS.md`)
 
-Tài liệu này là quy tắc bắt buộc mà mọi AI Coding Agent phải đọc **trước khi thực hiện bất kỳ thao tác phân tích, thiết kế hoặc viết code nào** trong dự án **ScamGuard Chat**.
+Tài liệu này là hướng dẫn dành cho AI Coding Agent khi làm việc trong dự án **ScamGuard Chat**.
+
+> [!NOTE]
+> **Khi thực hiện các thao tác viết hoặc chỉnh sửa code:** Hãy đọc **`convention.md`** ở thư mục gốc để đảm bảo tuân thủ đúng quy ước đặt tên, định dạng API/lỗi, Git workflow và nguyên tắc bảo mật của dự án.
 
 ---
 
