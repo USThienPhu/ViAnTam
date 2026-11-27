@@ -44,6 +44,39 @@ Người dùng chọn một cuộc hội thoại và bấm "Kiểm tra lừa đ�
 - Lời khuyên hành động cụ thể (không chuyển tiền, không cung cấp OTP, báo cáo, chặn).
 - Dòng lưu ý: đây là đánh giá tham khảo của AI.
 
+### 4.1. Câu hỏi làm rõ khi chưa chắc chắn
+
+Khi điểm rủi ro nằm ở vùng lưng chừng (khoảng 30 đến 69), AI không kết luận ngay mà hỏi người dùng thêm. Mục đích là giảm nghi nhầm người tốt, ví dụ chủ trọ hoặc người bán hàng cá nhân thật.
+
+**Nguyên tắc**
+- Chỉ hỏi ở vùng chưa chắc chắn. Điểm từ 70 trở lên (hoặc link/tài khoản nằm trong danh sách đen) vẫn cảnh báo ngay, điểm dưới 30 không hỏi.
+- Tối đa 3 câu, mỗi câu trả lời bằng một lần bấm: Có / Không / Không chắc.
+- Hỏi về sự kiện kiểm chứng được ("họ chủ động liên hệ bạn trước không?"), không hỏi cảm nhận ("bạn thấy họ đáng tin không?").
+- Câu "Không chắc" được tính như một tín hiệu bất lợi nhẹ, không bỏ qua.
+- Dùng ngôn ngữ trung tính: "Chưa xác minh được đối phương", không viết "Đây là lừa đảo".
+- Người đang bị dẫn dắt có thể được kẻ lừa đảo bảo trả lời "Có". Vì vậy ưu tiên câu hỏi dẫn tới một việc làm ngoài cuộc chat, ví dụ gọi lại bằng số đã lưu từ trước hoặc tự tra trang chính thức, rồi mới quay lại.
+
+**Ngân hàng câu hỏi mẫu**
+
+| Tình huống | Câu hỏi | Tác động tới điểm |
+|---|---|---|
+| Chuyển tiền / mã QR | Đối phương chủ động liên hệ bạn trước, hay bạn tự tìm họ? | Họ liên hệ trước: tăng |
+| Chuyển tiền / mã QR | Họ tự xưng là cơ quan hoặc công ty nhưng yêu cầu chuyển vào tài khoản cá nhân? | Có: tăng mạnh |
+| Chuyển tiền / mã QR | Bạn đã từng giao dịch với họ, hoặc có người quen xác nhận? | Có: giảm |
+| Chuyển tiền / mã QR | Bạn có thể gặp trực tiếp hoặc gọi lại bằng số đã lưu từ trước không? | Gọi lại và khớp: giảm. Không thể: tăng nhẹ |
+| Mọi tình huống | Họ có yêu cầu bạn giữ bí mật hoặc phải chuyển trong hôm nay? | Có: tăng mạnh |
+| Việc làm online | Bạn có phải nạp hoặc chuyển tiền trước để nhận tiền công không? | Có: tăng mạnh |
+| Việc làm online | Số tiền yêu cầu nạp có tăng sau mỗi lần không? | Có: tăng mạnh |
+| Việc làm online | Bạn đã rút được tiền về tài khoản của mình sau khi nạp chưa? | Chưa: tăng |
+| Giả danh người thân | Bạn đã gọi lại bằng số trong danh bạ cũ chưa? | Chưa: tăng, gợi ý làm ngay |
+| Đầu tư | Lãi suất hoặc cam kết lợi nhuận có được ghi trong hợp đồng, công ty có tra cứu được không? | Không: tăng |
+
+**Cách dùng câu trả lời**
+- Mỗi câu trả lời cộng hoặc trừ một lượng điểm cố định theo bảng trọng số, không để LLM tự quyết định. Cách này giúp giải thích được vì sao điểm thay đổi và dễ kiểm thử.
+- Hiển thị lý do thay đổi, ví dụ: "Điểm tăng từ 55 lên 78 vì họ liên hệ bạn trước và yêu cầu chuyển vào tài khoản cá nhân."
+- Nếu vẫn ở vùng chưa chắc chắn sau khi hỏi, đưa ra một bước xác minh cụ thể (gọi số chính thức, tra cứu công ty) thay vì ép chọn có/không.
+- Với trường hợp rủi ro cao, vẫn cho nút "Tôi đã kiểm tra và vẫn muốn tiếp tục", đi kèm một đoạn chờ ngắn. Không chặn hoàn toàn để tránh người dùng bỏ sản phẩm.
+
 ## 5. Tính năng an toàn cho người dùng
 
 - **Báo cáo tài khoản:** chọn lý do, mô tả, đính kèm tin nhắn làm bằng chứng.
@@ -76,6 +109,11 @@ Gọi LLM với prompt + dữ liệu đã trích xuất
 LLM trả về JSON: mức rủi ro, điểm, dấu hiệu, loại lừa đảo, lời khuyên
         |
         v
+Điểm ở vùng chưa chắc chắn (30 đến 69)?
+  - Có: hỏi tối đa 3 câu làm rõ (mục 4.1), cập nhật điểm theo trọng số cố định
+  - Không: bỏ qua bước này
+        |
+        v
 Hiển thị kết quả và lưu lịch sử
 ```
 
@@ -100,7 +138,8 @@ Kiến trúc kết hợp luật (rule-based) và LLM: bước tiền xử lý cu
 - `reports`: id, người báo cáo, người bị báo cáo, lý do, mô tả, bằng chứng.
 - `blocks`: người chặn, người bị chặn.
 - `blacklist`: loại (link / tài khoản ngân hàng / người dùng), giá trị, số lần báo cáo.
-- `scam_checks`: id, người yêu cầu, cuộc hội thoại, kết quả JSON, thời gian, phản hồi đúng/sai.
+- `scam_checks`: id, người yêu cầu, cuộc hội thoại, kết quả JSON, thời gian, phản hồi đúng/sai, điểm trước và sau khi hỏi làm rõ.
+- `clarification_answers`: id, scam_check_id, mã câu hỏi, câu trả lời (có / không / không chắc), điểm cộng hoặc trừ.
 
 ## 9. Quyền riêng tư và bảo mật
 
@@ -113,7 +152,7 @@ Kiến trúc kết hợp luật (rule-based) và LLM: bước tiền xử lý cu
 
 ## 10. Hạn chế đã biết
 
-- AI có thể báo nhầm (người tốt bị nghi ngờ) hoặc bỏ sót (kẻ lừa đảo tinh vi).
+- AI có thể báo nhầm (người tốt bị nghi ngờ) hoặc bỏ sót (kẻ lừa đảo tinh vi). Câu hỏi làm rõ (mục 4.1) giảm báo nhầm nhưng không loại bỏ hoàn toàn, vì người dùng có thể trả lời theo lời kẻ lừa đảo.
 - Kết quả không thay thế cho cơ quan chức năng hay ngân hàng.
 - Độ chính xác phụ thuộc vào chất lượng prompt, mô hình và dữ liệu danh sách đen.
 
