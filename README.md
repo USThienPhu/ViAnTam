@@ -127,8 +127,33 @@ Kiến trúc kết hợp luật (rule-based) và LLM: bước tiền xử lý cu
 6. Lịch sử kiểm tra, phản hồi đúng/sai, trang mẹo phòng chống.
 7. Bộ kiểm thử với các mẫu hội thoại lừa đảo và hội thoại bình thường để đo độ chính xác.
 8. Hoàn thiện giao diện tiếng Việt và viết hướng dẫn chạy.
+9. (Mở rộng) Chế độ luyện tập với chatbot mô phỏng lừa đảo, xem mục 12.
 
-## 12. Cần xác nhận trước khi làm
+## 12. Tính năng mở rộng (làm sau khi hoàn thành tính năng chính)
+
+Chừa sẵn chỗ trong thiết kế để thêm chế độ **luyện tập nhận biết lừa đảo**: người dùng nhắn tin với chatbot đóng vai kẻ lừa đảo, để làm quen với các cuộc hội thoại có dấu hiệu lừa đảo trong môi trường an toàn.
+
+**Cách hoạt động**
+- Người dùng chọn một kịch bản (giả danh công an, đầu tư lãi cao, việc làm online, tình cảm rồi vay tiền, shipper/ngân hàng yêu cầu OTP...) và trò chuyện với chatbot như trong chat thường.
+- Chatbot dẫn dắt theo kịch bản. Ví dụ sau khoảng 3 lượt trao đổi, chatbot gửi mã QR chuyển tiền kèm nội dung sai, hoặc tự xưng là công an và yêu cầu chuyển tiền "xác minh".
+- Trong lúc trò chuyện, giao diện có hai nút:
+  - **"Khả năng lừa đảo"**: người dùng bấm khi cho rằng đối phương đang lừa đảo.
+  - **"Khả năng không lừa đảo"**: người dùng bấm khi cho rằng cuộc trò chuyện an toàn.
+- Chatbot không biết trước người dùng sẽ chọn gì. Sau khi người dùng chọn, hệ thống công bố đáp án, chỉ ra các dấu hiệu đã xuất hiện ở từng lượt và giải thích cách nhận biết.
+- Kịch bản không phải lúc nào cũng là lừa đảo. Hệ thống trộn thêm một số cuộc trò chuyện bình thường, để người dùng không chọn "lừa đảo" một cách máy móc.
+
+**Điểm cần chừa sẵn khi thiết kế**
+- Tách "đối phương" thành một giao diện chung (người thật hoặc chatbot), để sau này thay bằng chatbot mà không sửa phần chat.
+- Mỗi kịch bản lưu dưới dạng dữ liệu: loại, các bước, thời điểm xuất hiện dấu hiệu (QR sai nội dung, giả danh...), và đáp án đúng (lừa đảo hay không).
+- Bảng dữ liệu dự kiến `practice_sessions`: id, người dùng, kịch bản, lựa chọn của người dùng, đáp án, số lượt trao đổi trước khi chọn, thời gian.
+- Có thể dùng lại module AI phát hiện lừa đảo ở mục 4 để giải thích dấu hiệu sau mỗi phiên.
+- Chỉ hiển thị rõ đây là chế độ mô phỏng. Chatbot không đưa mã QR, số tài khoản hay đường link thật.
+
+**Có thể làm thêm**
+- Điểm số và thống kê tỉ lệ nhận biết đúng theo từng loại lừa đảo.
+- Độ khó tăng dần (kịch bản tinh vi hơn).
+
+## 13. Cần xác nhận trước khi làm
 
 - Dùng LLM nào: API bên ngoài (cần key) hay chạy tại máy (Ollama)?
 - Có dùng Google Safe Browsing không, hay chỉ phân tích tên miền?
