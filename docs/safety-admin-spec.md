@@ -1,72 +1,67 @@
 # Safety, Moderation & Admin Specification (`safety-admin-spec.md`)
 
 ## 1. Mục tiêu nghiệp vụ
-Cung cấp các công cụ tự bảo vệ cho người dùng (Báo cáo, Chặn, Cảnh báo tự động, Mẹo phòng chống lừa đảo) và trang Quản trị (Admin) đơn giản để theo dõi các tài khoản/tài nguyên bị báo cáo nhiều lần.
+Cung cấp các công cụ tự bảo vệ (Báo cáo, Chặn, Cảnh báo tự động, Mẹo phòng chống) và trang Admin đơn giản để xem tài khoản/STK/link bị báo cáo nhiều lần.
 
-## 2. Database Schemas (MongoDB)
+## 2. Database Schemas (`Report`, `Block`, `Blacklist`)
 
-### 2.1. `Report`
+### 2.1. `Report` (`server/src/models/Report.js`)
 ```javascript
-{
-  _id: ObjectId,
-  reporterId: { type: ObjectId, ref: 'User', required: true },
-  reportedUserId: { type: ObjectId, ref: 'User', required: true },
+const reportSchema = new mongoose.Schema({
+  reporterId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  reportedUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   reason: { type: String, enum: ['impersonation', 'investment_scam', 'job_scam', 'phishing', 'other'], required: true },
-  description: { type: String, maxlength: 500 },
-  evidenceMessageIds: [{ type: ObjectId, ref: 'Message' }],
-  status: { type: String, enum: ['open', 'resolved', 'dismissed'], default: 'open' },
-  createdAt: { type: Date, default: Date.now }
-}
+  description: { type: String, maxlength: 500, default: '' },
+  evidenceMessageIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Message' }],
+  status: { type: String, enum: ['open', 'resolved', 'dismissed'], default: 'open' }
+}, { timestamps: true });
 ```
 
-### 2.2. `Block`
+### 2.2. `Block` (`server/src/models/Block.js`)
 ```javascript
-{
-  _id: ObjectId,
-  blockerId: { type: ObjectId, ref: 'User', required: true },
-  blockedId: { type: ObjectId, ref: 'User', required: true },
-  createdAt: { type: Date, default: Date.now }
-}
-// Compound unique index: { blockerId: 1, blockedId: 1 }
+const blockSchema = new mongoose.Schema({
+  blockerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  blockedId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
+}, { timestamps: true });
+blockSchema.index({ blockerId: 1, blockedId: 1 }, { unique: true });
 ```
 
-### 2.3. `Blacklist`
+### 2.3. `Blacklist` (`server/src/models/Blacklist.js`)
 ```javascript
-{
-  _id: ObjectId,
+const blacklistSchema = new mongoose.Schema({
   type: { type: String, enum: ['bank_account', 'link', 'user'], required: true },
-  value: { type: String, required: true, index: true }, // STK, domain/url, hoặc userId
-  bankBin: String,
+  value: { type: String, required: true, index: true },
+  bankBin: { type: String, default: '' },
   reportCount: { type: Number, default: 1 },
-  status: { type: String, enum: ['pending', 'confirmed'], default: 'pending' },
-  reasonSummary: String,
-  updatedAt: { type: Date, default: Date.now }
-}
+  status: { type: String, enum: ['pending', 'confirmed', 'dismissed'], default: 'pending' },
+  reasonSummary: { type: String, default: '' }
+}, { timestamps: true });
 ```
 
-## 3. Quy tắc nghiệp vụ
-1. **Tự động gắn cờ & Blacklist khi Báo cáo:**
-   - Khi nhận `POST /api/reports`, kiểm tra tránh 1 người báo cáo trùng lặp cùng 1 tài khoản nhiều lần để spam.
-   - Tăng `reportCount` của `reportedUserId` thêm 1. Nếu `reportCount >= 3`, tự động đặt `isFlagged = true` và phát sự kiện Socket `user_flagged`.
-   - Nếu các tin nhắn bằng chứng (`evidenceMessageIds`) có chứa `extractedLinks` hoặc `qrData.accountNumber`, tự động upsert vào `Blacklist` (tăng `reportCount` lên 1).
-2. **Chặn người dùng:**
-   - Khi `A` chặn `B`, cả `A` và `B` không thể gửi tin nhắn mới cho nhau qua Socket.IO.
-3. **Cảnh báo tự động:**
-   - Khi mở khung chat với user có `isFlagged === true`, hiển thị banner cảnh báo vàng/đỏ phía trên khung chat: *"Tài khoản này đã bị nhiều người dùng báo cáo. Hãy thận trọng khi giao dịch."*
+## 3. API Contract & Quy tắc nghiệp vụ
 
-## 4. API Contract (`/api/reports`, `/api/blocks`, `/api/admin`)
-- `POST /api/reports`: Body `{ reportedUserId, reason, description, evidenceMessageIds }`.
-- `POST /api/blocks`: Body `{ blockedId }`.
-- `DELETE /api/blocks/:targetUserId`: Bỏ chặn.
-- `GET /api/admin/overview` *(Yêu cầu `adminOnly`)*:
-  - Trả về:
-    - `flaggedUsers`: Danh sách user có `reportCount > 0` (sắp xếp `reportCount` giảm dần).
-    - `reports`: Danh sách các báo cáo gần nhất kèm `reporter`, `reportedUser`, `evidenceMessageIds`.
-    - `blacklist`: Danh sách STK / Link / User trong `Blacklist`.
-- `PATCH /api/admin/blacklist/:id` *(Yêu cầu `adminOnly`)*:
-  - Body `{ status: 'confirmed' | 'dismissed' }` để Admin duyệt hoặc gỡ khỏi danh sách đen.
+### 3.1. `POST /api/reports` *(Auth)*
+- **Body:** `{ reportedUserId, reason, description, evidenceMessageIds }`
+- **Chống spam:** Kiểm tra `Report.exists({ reporterId: req.user.id, reportedUserId })`. Nếu đã từng báo cáo -> `409 Conflict: { message: "Bạn đã báo cáo tài khoản này trước đó." }`.
+- **Tự động cập nhật:**
+  1. Lưu `Report`.
+  2. `User.findByIdAndUpdate(reportedUserId, { $inc: { reportCount: 1 } }, { new: true })`. Nếu `user.reportCount >= 3` -> cập nhật `isFlagged = true` và `io.emit('user_flagged', { userId: reportedUserId })`.
+  3. Lấy các `Message` trong `evidenceMessageIds`: với mỗi `extractedLinks` và `qrData.accountNumber`, thực hiện `Blacklist.findOneAndUpdate({ type, value }, { $inc: { reportCount: 1 }, $setOnInsert: { status: 'pending' } }, { upsert: true })`.
 
-## 5. Yêu cầu Giao diện (Frontend)
-- `ReportModal.jsx`: Form chọn lý do, mô tả ngắn và tick chọn các tin nhắn làm bằng chứng.
-- `TipsPage.jsx`: Trang tĩnh trình bày các chiêu trò lừa đảo phổ biến tại Việt Nam (giả danh công an, việc làm online, đầu tư lãi cao, phishing OTP, QR giả mạo) và nguyên tắc phòng tránh.
-- `AdminPage.jsx`: Giao diện 2 tab đơn giản: **Tài khoản bị báo cáo nhiều** và **Danh sách Blacklist (STK/Link)**, có nút **Xác nhận Blacklist** / **Gỡ bỏ**.
+### 3.2. `POST /api/blocks` & `DELETE /api/blocks/:targetUserId` *(Auth)*
+- `POST`: Body `{ blockedId }` -> Upsert vào `Block` -> `200 OK`.
+- `DELETE`: Xóa bản ghi `{ blockerId: req.user.id, blockedId: targetUserId }` -> `200 OK`.
+
+### 3.3. Admin Endpoints (`authMiddleware` + `adminOnly`)
+- **`GET /api/admin/overview`:**
+  - Trả về `{ flaggedUsers, recentReports, blacklist }`:
+    - `flaggedUsers`: Top 50 user có `reportCount > 0`, sort `reportCount: -1`.
+    - `recentReports`: 50 report mới nhất, populate `reporterId` (`username`), `reportedUserId` (`username`), `evidenceMessageIds`.
+    - `blacklist`: Toàn bộ bản ghi `Blacklist` sort `reportCount: -1`.
+- **`PATCH /api/admin/blacklist/:id`:**
+  - Body `{ status: 'confirmed' | 'dismissed' }`. Nếu `type === 'user'` và `status === 'confirmed'`, bật `User.isFlagged = true` (hoặc `false` nếu `'dismissed'`).
+
+## 4. Yêu cầu Frontend (`client/`)
+- `ReportModal.jsx`: Cho phép chọn lý do (5 mục tiếng Việt), nhập mô tả, và tick chọn tối đa 5 tin nhắn gần nhất làm bằng chứng.
+- `AdminPage.jsx`: 2 tab rõ ràng: **Tài khoản bị báo cáo nhiều** (hiện số lần report, trạng thái `isFlagged`) và **Danh sách Blacklist** (STK/Link + nút **Xác nhận** / **Gỡ bỏ**).
+- `TipsPage.jsx`: Trình bày 5 thẻ kiến thức phòng chống lừa đảo tại VN (Giả danh Công an/VNeID, Giả danh MoMo/Ngân hàng đòi OTP, Tuyển CTV nạp tiền, Đầu tư lãi khủng, Mã QR giả mạo).
