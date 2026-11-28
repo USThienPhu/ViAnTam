@@ -73,4 +73,4 @@ if (require.main === module) {
   start();
 }
 
-module.exports = { app, server, io };
+module.exports = { app, server, io, start };
