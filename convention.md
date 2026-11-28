@@ -47,6 +47,8 @@ Tài liệu này quy định các tiêu chuẩn kỹ thuật, đặt tên, Git w
 - **Ngôn ngữ hiển thị:** 100% văn bản trên UI (nút bấm, nhãn, thông báo lỗi, modal) dùng **tiếng Việt có dấu, trung tính**.
 - **Gọi API:** Mọi HTTP request đều đi qua `client/src/api/axiosInstance.js` (không dùng `fetch` rời rạc để tránh thiếu JWT token).
 - **Theme & Style:** Chỉ sử dụng màu sắc, font chữ, bo góc đã chốt trong `docs/theme.md`. Không tự chế màu ngoài hệ thống cho các trạng thái rủi ro (`low`/`medium`/`high`).
+- **Dùng class token, không viết mã hex:** Dùng các class sinh từ token trong `frontend/src/index.css` (xem `docs/theme.md` mục 5), ví dụ `bg-brand-primary`, `bg-risk-low-bg`. Không viết mã hex trực tiếp như `bg-[#D82D8B]`.
+- **Class theo mức rủi ro:** Khi chọn class theo `riskLevel`, khai báo một map chứa tên class đầy đủ, ví dụ `{ low: 'bg-risk-low-bg', medium: 'bg-risk-medium-bg', high: 'bg-risk-high-bg' }`. Không ghép chuỗi động như `` `bg-risk-${level}-bg` ``, vì Tailwind không sinh ra class đó.
 - **Xử lý State:** Luôn có đủ `loading`, `error` và `empty` state cho các thao tác gọi API.
 
 ---
