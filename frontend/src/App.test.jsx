@@ -1,8 +1,16 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { mockApi } from './test/mockApi';
+import { mockApi as baseMockApi } from './test/mockApi';
 import { ADMIN, USER, renderApp, seedSession } from './test/renderApp';
+
+// ChatPage mở socket thật khi hiển thị; test điều hướng không cần kết nối mạng nên dùng bản giả.
+vi.mock('./hooks/useChatSocket', () => ({
+  default: () => ({ status: 'connected', sendMessage: () => true }),
+}));
+
+// ChatPage luôn gọi GET /users khi hiển thị, nên mọi test đều có sẵn route này (danh sách rỗng).
+const mockApi = (routes) => baseMockApi({ 'GET /users': () => ({ data: [] }), ...routes });
 
 const ERR_LOGIN = { message: 'Sai tên đăng nhập hoặc mật khẩu.' };
 
