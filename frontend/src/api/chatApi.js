@@ -18,6 +18,12 @@ export function resolveImageUrl(imageUrl) {
   }
 }
 
+// GET /api/users -> danh sách người dùng khác, kèm isFlagged, reportCount, isBlockedByMe, hasBlockedMe.
+export async function getUsers() {
+  const { data } = await axiosInstance.get('/users');
+  return data;
+}
+
 // GET /api/messages/:targetUserId -> tối đa 100 tin gần nhất, cũ -> mới.
 export async function getMessages(targetUserId) {
   const { data } = await axiosInstance.get(`/messages/${encodeURIComponent(targetUserId)}`);
