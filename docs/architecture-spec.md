@@ -8,7 +8,7 @@ Tài liệu này mô tả kiến trúc tổng thể, cấu trúc thư mục, bi�
 - [`ai-scam-detection-spec.md`](ai-scam-detection-spec.md): Luồng kiểm tra lừa đảo On-demand, Link Analyzer, Contract AWS Custom LLM, 3 câu hỏi làm rõ & bảng trọng số.
 - [`safety-admin-spec.md`](safety-admin-spec.md): Báo cáo, Chặn, Blacklist, Cảnh báo tự động, Trang Mẹo phòng chống & Admin Dashboard.
 - [`practice-mode-spec.md`](practice-mode-spec.md): Chế độ luyện tập với chatbot mô phỏng (Mục 12 — mở rộng khi dư thời gian).
-- [`aws-llm-service-spec.md`](aws-llm-service-spec.md): Đặc tả riêng cho `ai-service/` trên AWS (FastAPI/vLLM, System Prompt chống Injection, Evaluation).
+- [`aws-llm-service-spec.md`](aws-llm-service-spec.md): Đặc tả riêng cho `ai-service/` trên AWS (FastAPI + Amazon Bedrock, System Prompt chống Injection, Evaluation).
 - [`ui-ux-spec.md`](ui-ux-spec.md): Quy chuẩn trạng thái UI (Loading/Empty/Blocked/Flagged), điều hướng và câu chữ tiếng Việt.
 - [`theme.md`](theme.md): Theme chủ đạo toàn dự án (Màu thương hiệu, màu rủi ro AI, Typography, Tokens).
 - [`testing-seed-spec.md`](testing-seed-spec.md): Đặc tả dữ liệu `seedDemo.js` (3 kịch bản chuẩn) và bộ Test Case E2E.
@@ -19,7 +19,7 @@ Tài liệu này mô tả kiến trúc tổng thể, cấu trúc thư mục, bi�
 flowchart LR
     FE["Frontend (React + Vite + TailwindCSS)"] <-->|"REST API + Socket.IO"| BE["Backend (Node.js + Express)"]
     BE <-->|"Mongoose"| DB[("MongoDB Atlas")]
-    BE -->|"Text Payload (HTTP REST)"| LLM["AWS Custom LLM Service (FastAPI / vLLM)"]
+    BE -->|"Text Payload (HTTP REST)"| LLM["AWS LLM Service (FastAPI trên EC2 → Amazon Bedrock)"]
 ```
 
 | Thành phần | Công nghệ |
@@ -27,7 +27,7 @@ flowchart LR
 | Frontend | React + Vite + TailwindCSS (`socket.io-client`, `axios`, `lucide-react`) |
 | Backend | Node.js + Express + Socket.IO |
 | Database | MongoDB (Mongoose + MongoDB Atlas) |
-| AI Service | Custom LLM (nhận Text thuần) triển khai trên AWS |
+| AI Service | FastAPI trên AWS EC2 gọi LLM qua Amazon Bedrock (`boto3`) |
 
 ## 3. Cấu trúc thư mục dự án
 
@@ -51,7 +51,7 @@ aegisai/
 │       ├── context/            # AuthContext.jsx
 │       ├── components/         # ChatWindow, MessageBubble, PrivacyConfirmModal, ScamResultModal...
 │       └── pages/              # LoginPage, RegisterPage, ChatPage, HistoryPage, TipsPage, AdminPage
-└── ai-service/                 # Custom LLM Service trên AWS (FastAPI / vLLM)
+└── ai-service/                 # AWS LLM Service (FastAPI + Amazon Bedrock)
 ```
 
 ## 4. Biến môi trường (`.env`)

@@ -35,15 +35,19 @@ Tài liệu được kiểm tra và tối ưu theo 3 tiêu chí: **đầy đủ 
 ### NGÀY 1: Khởi tạo Database, Hạ tầng, Contract & Core Nền tảng
 
 #### Thành viên 1 (AI / LLM + Cầu nối AI)
-- **AI-1.1 | Dataset & Prompt chống Injection** (`docs/aws-llm-service-spec.md`)
-  - Tạo 20 kịch bản mẫu (15 lừa đảo VN + 5 bình thường); viết `ai-service/prompt_builder.py` bọc tin nhắn trong `<CONVERSATION_DATA>...</CONVERSATION_DATA>`.
-  - *Kết quả:* Prompt không bị jailbreak bởi câu lệnh giả trong tin nhắn.
-- **AI-1.2 | FastAPI Wrapper** (`ai-service/app.py`, `ai-service/model_loader.py`)
-  - Tạo `POST /analyze` nhận `AnalyzeRequest`, kiểm tra `X-API-Key`, trả về `AnalyzeResponse` + `repair_json()`.
-  - *Kết quả:* `uvicorn app:app --port 8000` chạy local trả JSON hợp lệ 100%.
-- **AI-1.3 | Link Analyzer Service** (`backend/src/services/linkAnalyzer.service.js`, `docs/ai-scam-detection-spec.md`)
-  - Trích xuất URL bằng regex, kiểm tra `has_ip_host`, `suspicious_tld`, `shortened_url`, Levenshtein `typosquatting`, và Google Safe Browsing fallback (`timeout: 2000ms`).
-  - *Kết quả:* Test `http://m0mo-xacminh.xyz` trả về `["typosquatting", "suspicious_tld"]`.
+- **AI-1.0 | Chuẩn bị AWS Bedrock (làm đầu tiên)** (`docs/aws-llm-service-spec.md` mục 1)
+  - Bật *Model access* trong Bedrock Console cho model chính + dự phòng (cùng region); kiểm tra credit có áp dụng cho model đã chọn; đặt AWS Budget cảnh báo `$5`; tạo IAM Role `bedrock:InvokeModel` cho EC2.
+  - *Kết quả:* Gọi thử `converse` từ máy local bằng `boto3` nhận được câu trả lời.
+- **AI-1.1 | Dataset & Prompt chống Injection** (`docs/aws-llm-service-spec.md` mục 5, 7)
+  - Thu thập dữ liệu (Kaggle/HF tiếng Việt + tự viết theo cảnh báo chính thức), ghi license vào `ai-service/data/SOURCES.md`, tách `dev.jsonl` (~10–15 mẫu) và `test.jsonl` (`>= 20` lừa đảo + `>= 10` an toàn).
+  - Viết `ai-service/prompt_builder.py`: làm sạch thẻ `<CONVERSATION_DATA>`/`<EXTRACTED_SIGNALS>` trong nội dung, bọc tin nhắn, few-shot lấy từ tập dev.
+  - *Kết quả:* Prompt không bị jailbreak bởi câu lệnh giả hoặc thẻ đóng giả trong tin nhắn.
+- **AI-1.2 | FastAPI Wrapper gọi Bedrock** (`ai-service/app.py`, `ai-service/model_loader.py`)
+  - Tạo `POST /analyze` nhận `AnalyzeRequest`, kiểm tra `X-API-Key`, gọi Bedrock bằng `boto3` (`converse`), `repair_json()` + retry 1 lần; lỗi hẳn thì trả `502 LLM_UNAVAILABLE` (không trả điểm giả).
+  - *Kết quả:* `uvicorn app:app --port 8000` chạy local trả JSON hợp lệ hoặc `502` rõ ràng.
+- **AI-1.3 | Link Analyzer Service** (`backend/src/services/linkAnalyzer.service.js`, `docs/ai-scam-detection-spec.md` mục 3.1)
+  - Export `normalizeUrl`, `analyzeLink`, `analyzeLinks` (link lấy từ `Message.extractedLinks`, không tự trích xuất); kiểm tra `has_ip_host`, `suspicious_tld`, `shortened_url`, `typosquatting` (tách token + chuẩn hóa `0→o`, `1→l`…), Google Safe Browsing fallback (`timeout: 2000ms`). Viết test `node --test`.
+  - *Kết quả:* `http://m0mo-xacminh.xyz` trả về `["suspicious_tld", "typosquatting"]`; `https://momo.vn` trả về `[]`.
 
 #### Thành viên 2 (Fullstack: DB, Server Shell, Auth & Router)
 - **W2-1.1 | MongoDB Atlas & Khởi tạo Repo** (`docs/architecture-spec.md`, `docs/theme.md`)
@@ -71,12 +75,15 @@ Tài liệu được kiểm tra và tối ưu theo 3 tiêu chí: **đầy đủ 
 ### NGÀY 2: Chat Realtime, VietQR, Deploy AWS LLM & Luồng Scam Check
 
 #### Thành viên 1 (AI / LLM + Cầu nối Node.js)
-- **AI-2.1 | Deploy Custom LLM lên AWS** (`docs/aws-llm-service-spec.md`)
-  - Deploy `ai-service/` lên **AWS** (EC2/ECS), mở port `8000` (hoặc Nginx HTTPS), cấu hình `AWS_LLM_API_KEY`.
+- **AI-2.1 | Deploy `ai-service` lên AWS EC2** (`docs/aws-llm-service-spec.md` mục 6)
+  - EC2 `t3.micro`/`t3.small` (không cần GPU) gắn IAM Role Bedrock; cấu hình `AWS_LLM_API_KEY`, `AWS_REGION`, `BEDROCK_MODEL_ID`; Security Group chỉ mở `8000` cho IP backend (hoặc Nginx HTTPS `443`).
   - *Kết quả:* Gọi `POST http://<aws-ip>:8000/analyze` từ bên ngoài thành công trong `< 3s`.
-- **AI-2.2 | Viết `llmClient.service.js` tại Backend** (`backend/src/services/llmClient.service.js`)
-  - Gọi `AWS_LLM_API_URL` (`timeout: 15000ms`), xử lý fallback Heuristic nếu AWS bận/lỗi.
-  - *Kết quả:* Node.js gọi sang AWS LLM nhận đúng JSON chuẩn.
+- **AI-2.2 | Viết `llmClient.service.js` tại Backend** (`backend/src/services/llmClient.service.js`, `docs/ai-scam-detection-spec.md` mục 2.1, 3.2)
+  - Export `analyzeConversation(input)` và `riskLevelFromScore(score)`; đổi camelCase ↔ snake_case; gọi `AWS_LLM_API_URL` (`timeout: 15000ms`); fallback Heuristic có luật từ khóa; override Blacklist `>= 85`; tự tính `riskLevel` từ điểm; trả `analysisSource`. Viết test `node --test` cho heuristic với 3 hội thoại seed.
+  - *Kết quả:* Node.js gọi sang AWS LLM nhận đúng JSON chuẩn; tắt AWS thì heuristic vẫn cho ra đúng 3 mức của 3 hội thoại seed.
+- **W1-2.3 | Trang Mẹo (FE)** (`docs/safety-admin-spec.md` mục 4)
+  - FE: `pages/TipsPage.jsx` (5 thẻ chiêu trò lừa đảo phổ biến VN, trang tĩnh) + sửa dòng route `/tips` trong `App.jsx`.
+  - *Kết quả:* Vào `/tips` thấy đủ 5 thẻ, đúng theme.
 
 #### Thành viên 2 (Fullstack: Chat 1-1 & VietQR)
 - **W2-2.1 | Socket.IO Chat 1-1, Upload Ảnh & `ChatPartner`** (`docs/chat-spec.md`)
@@ -90,7 +97,7 @@ Tài liệu được kiểm tra và tối ưu theo 3 tiêu chí: **đầy đủ 
 
 #### Thành viên 3 (Fullstack: Scam Check Core & Báo cáo/Chặn)
 - **W3-2.1 | API `POST /api/scam-check/analyze` & Rate Limit** (`docs/ai-scam-detection-spec.md`)
-  - BE: `middlewares/rateLimit.js` (10 req/phút), `routes/scamCheck.routes.js` (lấy 30 tin gần nhất, chạy `linkAnalyzer`, đối chiếu `Blacklist`, gọi `llmClient`, ép điểm `>= 85` nếu trúng Blacklist, lưu `ScamCheck`).
+  - BE: `middlewares/rateLimit.js` (10 req/phút), `routes/scamCheck.routes.js` theo luồng `docs/ai-scam-detection-spec.md` mục 3.2.1 (lấy 30 tin gần nhất, gọi `linkAnalyzer.analyzeLinks`, đối chiếu `Blacklist` để gắn `inBlacklist`, gọi `llmClient.analyzeConversation`, lưu `ScamCheck` kèm `analysisSource`). Việc ép điểm `>= 85` khi trúng Blacklist do `llmClient` làm, route không làm lại.
   - FE: Gắn nút **"Kiểm tra lừa đảo"** trong `ChatSafetyActions.jsx` -> `PrivacyConfirmModal` -> Loading -> `ScamResultModal`.
   - *Kết quả:* Bấm kiểm tra trên cuộc trò chuyện trả về kết quả từ AWS LLM và lưu MongoDB.
 - **W3-2.2 | API & UI Báo cáo, Chặn** (`docs/safety-admin-spec.md`)
@@ -104,12 +111,13 @@ Tài liệu được kiểm tra và tối ưu theo 3 tiêu chí: **đầy đủ 
 
 ### NGÀY 3: Trang Mẹo/Lịch sử, 3 Câu hỏi làm rõ, Admin & Seed Data
 
-#### Thành viên 1 (AI Benchmark + Frontend `TipsPage` & `HistoryPage`)
-- **AI-3.1 | Tinh chỉnh Prompt & Chạy Benchmark** (`docs/aws-llm-service-spec.md`)
-  - Tinh chỉnh ngưỡng điểm vùng `30–69` và `< 30`; chạy Benchmark 20 mẫu (Recall `>= 90%`, FP `<= 10%`).
-- **W1-3.2 | Trang Mẹo & Trang Lịch sử Kiểm tra (FE)** (`docs/ai-scam-detection-spec.md`, `docs/safety-admin-spec.md`)
-  - FE: Tạo `pages/TipsPage.jsx` (5 thẻ chiêu trò lừa đảo phổ biến VN) và `pages/HistoryPage.jsx` (gọi `GET /api/scam-check/history`, hiển thị badge điểm, nút Feedback **Đúng / Sai**).
-  - *Kết quả:* Xem được lịch sử kiểm tra và gửi Feedback Đúng/Sai lưu xuống DB.
+#### Thành viên 1 (AI Benchmark + Frontend `HistoryPage`)
+- **AI-3.1 | Tinh chỉnh Prompt & Chạy Benchmark** (`docs/aws-llm-service-spec.md` mục 7)
+  - Tinh chỉnh prompt trên tập `dev`; chạy `evaluate.py` trên tập `test` (lừa đảo khi `risk_score >= 70`): Recall `>= 90%`, FPR `<= 10%`, latency trung bình `< 3s`; xuất bảng số liệu cho slide.
+- **W1-3.2 | Trang Lịch sử Kiểm tra (FE)** (`docs/ai-scam-detection-spec.md` mục 4)
+  - FE: `pages/HistoryPage.jsx` (gọi `GET /api/scam-check/history`, hiển thị badge điểm theo `riskLevel`, nhãn "Đánh giá nhanh" khi `analysisSource === 'heuristic'`, nút Feedback **Đúng / Sai** gọi `POST /:checkId/feedback`) + sửa dòng route `/history` trong `App.jsx`.
+  - Dựng trước với `mockApi` (`frontend/src/test/mockApi.js`) vì API `/history` và `/feedback` của TV3 cũng xong trong Ngày 3; ghép API thật khi TV3 merge. Merge `App.jsx` lần lượt với TV3 (dòng route `/admin` nằm sát).
+  - *Kết quả:* Xem được lịch sử kiểm tra **của chính mình** và gửi Feedback Đúng/Sai lưu xuống DB.
 
 #### Thành viên 2 (Fullstack: Polish UX & Chuẩn bị Deploy)
 - **W2-3.1 | Hoàn thiện UX Chat, Error Toast & Responsive** (`docs/ui-ux-spec.md`)
@@ -119,7 +127,7 @@ Tài liệu được kiểm tra và tối ưu theo 3 tiêu chí: **đầy đủ 
 
 #### Thành viên 3 (Fullstack: 3 Câu hỏi làm rõ, Admin & Seed Data)
 - **W3-3.1 | Clarification Engine & Feedback API** (`docs/ai-scam-detection-spec.md`)
-  - BE: `services/clarification.service.js` (bảng trọng số cố định, chọn tối đa 3 câu, sinh `scoreChangeReason`), API `/clarify`, `/feedback`, `/history`.
+  - BE: `services/clarification.service.js` (bảng trọng số cố định, chọn tối đa 3 câu, sinh `scoreChangeReason`), API `/clarify`, `/feedback` (kiểm tra chủ sở hữu), `/history` (chỉ lấy `requesterId` của người đang đăng nhập, giới hạn 50).
   - FE: `ClarificationStepper.jsx` (`Có`/`Không`/`Không chắc`), nút **"Tôi đã kiểm tra và vẫn muốn tiếp tục"** (đếm ngược 3s).
   - *Kết quả:* Ca điểm `30–69` hiện 3 câu hỏi, trả lời xong cập nhật điểm & lý do ngay trên Modal.
 - **W3-3.2 | Admin Dashboard & Script `seedDemo.js`** (`docs/safety-admin-spec.md`, `docs/testing-seed-spec.md`)
@@ -135,7 +143,7 @@ Tài liệu được kiểm tra và tối ưu theo 3 tiêu chí: **đầy đủ 
 
 #### Thành viên 1 (AI / LLM)
 - **AI-4.1 | Ổn định AWS LLM & Slide Thuyết trình**
-  - Cấu hình `systemd` / `PM2` / Docker `--restart always` cho `ai-service` trên AWS.
+  - Cấu hình `systemd` / `PM2` / Docker `--restart always` cho `ai-service` trên AWS; kiểm tra chi phí Bedrock trong Billing trước buổi demo.
   - Tổng hợp sơ đồ kiến trúc AI + bảng số liệu Benchmark cho slide MoMo TechDays.
 
 #### Thành viên 2 (Fullstack: Deploy Backend & Frontend)
