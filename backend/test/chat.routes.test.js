@@ -8,6 +8,7 @@ process.env.JWT_SECRET = 'test-secret-chi-dung-cho-test';
 
 const mongoose = require('mongoose');
 const request = require('supertest');
+const QRCode = require('qrcode');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 
 const { app, io } = require('../src/app');
@@ -109,6 +110,42 @@ describe('POST /api/messages/upload', () => {
     const file = await request(app).get(res.body.imageUrl);
     assert.equal(file.status, 200);
     assert.deepEqual(file.body, PNG);
+  });
+
+  test('upload ảnh VietQR thật trả qrData đã giải mã, ảnh vẫn mở được', async () => {
+    const tlv = (tag, value) => `${tag}${String(value.length).padStart(2, '0')}${value}`;
+    const beneficiary = tlv('00', '970418') + tlv('01', '123456789');
+    const raw =
+      '000201010212' +
+      tlv('38', tlv('00', 'A000000727') + tlv('01', beneficiary) + tlv('02', 'QRIBFTTA')) +
+      '5303704' + tlv('54', '500000') + '5802VN' + tlv('62', tlv('08', 'Xac minh')) + '63040000';
+    const qrPng = await QRCode.toBuffer(raw, { type: 'png', margin: 4, scale: 6 });
+
+    const res = await request(app)
+      .post('/api/messages/upload')
+      .set(auth(alice))
+      .attach('image', qrPng, { filename: 'qr.png', contentType: 'image/png' });
+    assert.equal(res.status, 200);
+    createdFiles.push(path.basename(res.body.imageUrl));
+    assert.equal(res.body.qrData.isVietQR, true);
+    assert.equal(res.body.qrData.bankName, 'BIDV');
+    assert.equal(res.body.qrData.accountNumber, '123456789');
+    assert.equal(res.body.qrData.amount, 500000);
+    assert.equal(res.body.qrData.purpose, 'Xac minh');
+    assert.deepEqual(res.body.extractedLinks, []);
+    assert.equal((await request(app).get(res.body.imageUrl)).status, 200);
+  });
+
+  test('upload ảnh QR chứa link trả extractedLinks', async () => {
+    const qrPng = await QRCode.toBuffer('https://m0mo-xacminh.xyz/pay', { type: 'png', margin: 4, scale: 6 });
+    const res = await request(app)
+      .post('/api/messages/upload')
+      .set(auth(alice))
+      .attach('image', qrPng, { filename: 'qr.png', contentType: 'image/png' });
+    assert.equal(res.status, 200);
+    createdFiles.push(path.basename(res.body.imageUrl));
+    assert.equal(res.body.qrData.isVietQR, false);
+    assert.deepEqual(res.body.extractedLinks, ['https://m0mo-xacminh.xyz/pay']);
   });
 
   test('sai định dạng trả 400', async () => {
