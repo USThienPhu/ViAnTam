@@ -75,15 +75,23 @@ describe('Điều hướng và phân quyền', () => {
     expect(within(nav).getByRole('link', { name: 'Quản trị' })).toBeInTheDocument();
   });
 
-  it.each([
-    ['/history', 'Lịch sử kiểm tra'],
-    ['/tips', 'Mẹo an toàn'],
-  ])('route %s hiển thị trang tạm "%s"', async (path, title) => {
+  it('route /history hiển thị trang Lịch sử kiểm tra', async () => {
+    seedSession(USER);
+    mockApi({
+      'GET /auth/me': () => ({ data: USER }),
+      'GET /scam-check/history': () => ({ data: [] }),
+    });
+    renderApp('/history');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Lịch sử kiểm tra' })).toBeInTheDocument();
+    expect(await screen.findByText('Bạn chưa thực hiện lần kiểm tra nào.')).toBeInTheDocument();
+  });
+
+  it('route /tips hiển thị trang Mẹo an toàn', async () => {
     seedSession(USER);
     mockApi({ 'GET /auth/me': () => ({ data: USER }) });
-    renderApp(path);
-    expect(await screen.findByRole('heading', { name: title })).toBeInTheDocument();
-    expect(screen.getByText('Tính năng này đang được phát triển.')).toBeInTheDocument();
+    renderApp('/tips');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Mẹo an toàn' })).toBeInTheDocument();
+    expect(screen.queryByText('Tính năng này đang được phát triển.')).not.toBeInTheDocument();
   });
 
   it('đã đăng nhập mà vào /login thì chuyển về "/"', async () => {

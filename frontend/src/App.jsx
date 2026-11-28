@@ -6,6 +6,8 @@ import PlaceholderPage from './components/PlaceholderPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ChatPage from './pages/ChatPage';
+import TipsPage from './pages/TipsPage';
+import HistoryPage from './pages/HistoryPage';
 
 /*
  * LƯU Ý CHO AI AGENT CỦA TV1 VÀ TV3 (đọc trước khi sửa file này):
@@ -44,8 +46,8 @@ export function AppRoutes() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<ChatPage />} />
-          <Route path="/history" element={<PlaceholderPage title="Lịch sử kiểm tra" />} />
-          <Route path="/tips" element={<PlaceholderPage title="Mẹo an toàn" />} />
+          <Route path="/history" element={<HistoryPage />} />
+          <Route path="/tips" element={<TipsPage />} />
           <Route element={<AdminRoute />}>
             <Route path="/admin" element={<PlaceholderPage title="Quản trị" />} />
           </Route>
