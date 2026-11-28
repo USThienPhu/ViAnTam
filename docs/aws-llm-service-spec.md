@@ -1,28 +1,33 @@
 # AWS LLM Service Specification (`aws-llm-service-spec.md`)
 
-Tài liệu đặc tả cho `ai-service/` (Python FastAPI) chạy trên **AWS EC2 thường (không cần GPU)** và gọi LLM qua **Amazon Bedrock** (API `converse` của `boto3`).
+Tài liệu đặc tả cho `ai-service/` (Python FastAPI) chạy **chung EC2 với backend** (`t3.small`, `us-east-1`, không cần GPU) và gọi LLM qua **Amazon Bedrock** (API `converse` của `boto3`), dùng tài khoản sandbox do BTC cấp.
 
 > [!NOTE]
 > **Cách gọi tên khi trình bày:** Dự án **không** fine-tune hay tự huấn luyện model. Gọi đúng là *"AI Scam Detection Engine: mô hình nền trên Amazon Bedrock được tùy chỉnh cho domain lừa đảo Việt Nam bằng prompt + few-shot, kết hợp pipeline đa tín hiệu tự xây (heuristic link, parser VietQR, blacklist) và bộ fallback khi AI gián đoạn"*. Không dùng cụm "Custom LLM" hay "multi-agent".
 
 ```mermaid
 flowchart LR
-    BE["Backend Node.js (llmClient.service.js)"] -->|"POST /analyze + X-API-Key"| AIS["ai-service (FastAPI trên EC2 t3.small)"]
+    BE["Backend Node.js (llmClient.service.js)"] -->|"POST http://localhost:8000/analyze + X-API-Key"| AIS["ai-service (FastAPI, cùng EC2 t3.small)"]
     AIS -->|"boto3 bedrock-runtime.converse"| BR["Amazon Bedrock (BEDROCK_MODEL_ID)"]
 ```
 
 ## 1. Biến môi trường (`ai-service/.env`)
 ```env
 AWS_LLM_API_KEY=internal_shared_secret_key   # Trùng với AWS_LLM_API_KEY của backend
-AWS_REGION=us-east-1                          # Region đã bật Model access cho model bên dưới
-BEDROCK_MODEL_ID=<model id chính, ví dụ Amazon Nova Lite hoặc Claude Haiku>
-BEDROCK_FALLBACK_MODEL_ID=                    # Tùy chọn: model dự phòng khi model chính lỗi/throttle
+AWS_REGION=us-east-1                          # Cùng region với EC2 backend; sandbox chỉ cho us-east-1 / ap-southeast-1
+BEDROCK_MODEL_ID=us.amazon.nova-lite-v1:0     # Inference profile do BTC hướng dẫn
+BEDROCK_FALLBACK_MODEL_ID=                    # Inference profile Nova Micro, copy từ Bedrock Console → Cross-region inference
 ```
-- **Credentials AWS:** Trên EC2 gắn **IAM Role** có quyền `bedrock:InvokeModel` (không để Access Key trong `.env`). Chạy local dùng `aws configure` (profile cá nhân).
-- **Model access & hạn mức:** Bật trong Bedrock Console → *Model access* cho đúng region **từ Ngày 1** (model của bên thứ ba có thể cần chờ duyệt). Kiểm tra model có sẵn ở region đã chọn và hạn mức on-demand (request/phút, token/phút) trong *Service Quotas*; nhiều giám khảo bấm cùng lúc có thể bị throttle → model dự phòng + heuristic fallback của backend xử lý.
-- **Chi phí:** Kiểm tra credit AWS có áp dụng cho model đã chọn không (model bán qua AWS Marketplace có thể không trừ vào credit khuyến mãi; model Amazon Nova thì có). Đặt AWS Budget cảnh báo ở mức `$5`.
+- **Ràng buộc tài khoản sandbox (theo Q&A của BTC):** chỉ dùng được region `us-east-1` và `ap-southeast-1`; **không tạo được IAM user, role, access key**; không xem được Billing/Budgets; model qua Marketplace (Claude...) **không được hỗ trợ** → dùng **Amazon Nova** qua inference profile (`us.amazon.nova-lite-v1:0`).
+- **Credentials AWS (không bao giờ ghi access key vào code hay `.env` commit lên git):**
+  - Thử nhanh: **CloudShell** trong Console (dùng sẵn quyền của người đăng nhập).
+  - Dev trên máy cá nhân: credentials **tạm thời** từ trang AWS access portal (mục *Access keys*, nếu tài khoản đăng nhập qua portal), xuất ra biến môi trường; `boto3` tự đọc.
+  - Server: dùng **IAM instance profile có sẵn** gắn vào EC2 backend (do BTC tạo, nếu có). Nếu không có role nào dùng được → email BTC. Phương án cuối nếu BTC không hỗ trợ: thêm nhà cung cấp LLM khác vào `model_loader.py` (giữ nguyên contract `/analyze`), cập nhật spec này trước khi làm.
+- **Lần gọi đầu:** lỗi *"Your account is currently being verified"* là bước AWS xác minh tài khoản, chờ vài phút rồi thử lại.
+- **Hạn mức:** xem request/phút của model trong *Service Quotas* (nếu có quyền xem); nhiều giám khảo bấm cùng lúc có thể bị throttle → model dự phòng + heuristic fallback của backend xử lý.
+- **Chi phí:** 20 USD là **hạn mức chi của cả tài khoản sandbox** (không phải credit), chạm 20 USD thì tài khoản bị khóa. Bedrock Nova cho demo/benchmark chỉ tốn vài chục cent; chi phí chính là EC2 `t3.small` (~0,02 USD/giờ) → **Stop EC2 khi không dùng**, xóa tài nguyên thừa.
 
-## 2. Pydantic Schemas (`ai-service/app.py`)
+## 2. Pydantic Schemas (`ai-service/schemas.py`, được `app.py` và `prompt_builder.py` import)
 ```python
 SCAM_TYPES = [  # Giữ khớp với SCAM_TYPES trong ai-scam-detection-spec.md mục 2.2
     "Giả danh ngân hàng / ví điện tử", "Giả danh cơ quan chức năng", "Đánh cắp mã OTP / tài khoản",
@@ -121,12 +126,11 @@ Thẻ phân cách chỉ là một lớp giảm nhẹ, không đủ để chặn 
   - Yêu cầu chỉ trả về **một object JSON** đúng schema `AnalyzeResponse`, viết `explanation`, `advice` bằng tiếng Việt; `quote` phải trích nguyên văn từ hội thoại.
   - 2–4 ví dụ mẫu (few-shot) lấy từ **tập dev** (mục 7), không lấy từ tập test.
 
-## 6. Triển khai trên AWS EC2
-- Instance `t3.micro`/`t3.small` (không cần GPU), gắn IAM Role ở mục 1.
-- Chạy bằng `uvicorn app:app --host 0.0.0.0 --port 8000` (bọc trong `systemd` hoặc `pm2` hoặc Docker container với `--restart always`).
-- **Mạng (ưu tiên theo thứ tự):**
-  1. **Backend cũng chạy trên EC2 (khuyến nghị):** đặt `ai-service` cùng VPC, backend gọi qua **IP private** (`AWS_LLM_API_URL=http://<private-ip>:8000/analyze`); Security Group chỉ cho Security Group của backend vào port `8000`, **không** mở port public.
-  2. Backend ở nền tảng không có IP cố định (Render/Railway): đặt Nginx + HTTPS ở port `443` để `X-API-Key` không đi qua mạng dưới dạng văn bản thường.
+## 6. Triển khai trên AWS EC2 (chung máy với backend)
+- Cài `ai-service` lên **chính EC2 backend** (`t3.small`, `us-east-1`) để tiết kiệm hạn mức 20 USD và không phải mở thêm port.
+- Chạy bằng `uvicorn app:app --host 127.0.0.1 --port 8000` bọc trong `systemd` (`Restart=always`), chỉ nghe trên localhost.
+- Backend đặt `AWS_LLM_API_URL=http://localhost:8000/analyze`. **Không** mở port `8000` trong Security Group.
+- Quyền gọi Bedrock lấy từ IAM instance profile của EC2 (mục 1).
 
 ## 7. Dữ liệu mẫu & Benchmark
 - **Nguồn dữ liệu:** Kết hợp

@@ -62,7 +62,7 @@ PORT=5000
 MONGODB_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/aegisai
 JWT_SECRET=your_super_secret_jwt_key
 CLIENT_URL=http://localhost:5173
-AWS_LLM_API_URL=http://<aws-ec2-ip>:8000/analyze
+AWS_LLM_API_URL=http://localhost:8000/analyze   # ai-service chạy chung EC2 với backend
 AWS_LLM_API_KEY=internal_shared_secret_key
 GOOGLE_SAFE_BROWSING_KEY=optional_api_key_here
 ```

@@ -36,9 +36,9 @@ Tài liệu được kiểm tra và tối ưu theo 3 tiêu chí: **đầy đủ 
 
 #### Thành viên 1 (AI / LLM + Cầu nối AI)
 - **AI-1.0 | Chuẩn bị AWS Bedrock (làm đầu tiên)** (`docs/aws-llm-service-spec.md` mục 1)
-  - Bật *Model access* trong Bedrock Console cho model chính + dự phòng (cùng region); kiểm tra credit có áp dụng cho model đã chọn; đặt AWS Budget cảnh báo `$5`; tạo IAM Role `bedrock:InvokeModel` cho EC2.
+  - Tài khoản sandbox BTC: chỉ `us-east-1`/`ap-southeast-1`, không tạo được IAM user/role/access key, không dùng được Claude. Thử gọi `us.amazon.nova-lite-v1:0` bằng **CloudShell** (`us-east-1`); lấy ID inference profile Nova Micro làm dự phòng; kiểm tra EC2 backend có IAM instance profile dùng được cho Bedrock không (không có thì email BTC).
   - Tạo sớm `backend/src/config/scamTypes.js` (danh sách `SCAM_TYPES`) để TV3 dùng trong schema `ScamCheck`.
-  - *Kết quả:* Gọi thử `converse` từ máy local bằng `boto3` nhận được câu trả lời.
+  - *Kết quả:* Gọi thử `converse` từ CloudShell nhận được câu trả lời.
 - **AI-1.1 | Dataset & Prompt chống Injection** (`docs/aws-llm-service-spec.md` mục 5, 7)
   - Thu thập dữ liệu (Kaggle/HF tiếng Việt + tự viết theo cảnh báo chính thức + nháp Bedrock duyệt tay), ghi license vào `ai-service/data/SOURCES.md`. Ngày 1 xong `dev.jsonl` (~10–15 mẫu) và ít nhất 20 mẫu đầu của `test.jsonl` (gồm vài ca injection).
   - Viết `ai-service/prompt_builder.py`: làm sạch thẻ giả + ký tự vô hình, giới hạn độ dài, đưa tin nhắn vào dạng mảng JSON trong `<CONVERSATION_DATA>`, `scam_type` thuộc `SCAM_TYPES`, few-shot lấy từ tập dev.
@@ -76,8 +76,8 @@ Tài liệu được kiểm tra và tối ưu theo 3 tiêu chí: **đầy đủ 
 ### NGÀY 2: Chat Realtime, VietQR, Deploy AWS LLM & Luồng Scam Check
 
 #### Thành viên 1 (AI / LLM + Cầu nối Node.js)
-- **AI-2.1 | Deploy `ai-service` lên AWS EC2** (`docs/aws-llm-service-spec.md` mục 6)
-  - EC2 `t3.micro`/`t3.small` (không cần GPU) gắn IAM Role Bedrock; cấu hình `AWS_LLM_API_KEY`, `AWS_REGION`, `BEDROCK_MODEL_ID`. Thống nhất với TV2: nếu backend chạy EC2 thì đặt cùng VPC, gọi qua IP private, không mở port public; nếu không thì dùng Nginx HTTPS `443`. Kiểm tra hạn mức request/phút của model trong Service Quotas.
+- **AI-2.1 | Deploy `ai-service` lên EC2 backend** (`docs/aws-llm-service-spec.md` mục 6)
+  - Cài `ai-service` lên chính EC2 backend của TV2 (`t3.small`, `us-east-1`), chạy systemd trên `127.0.0.1:8000`; cấu hình `AWS_LLM_API_KEY`, `AWS_REGION=us-east-1`, `BEDROCK_MODEL_ID=us.amazon.nova-lite-v1:0`; TV2 đặt `AWS_LLM_API_URL=http://localhost:8000/analyze`. Không mở port 8000. Quyền Bedrock lấy từ IAM instance profile của EC2.
   - *Kết quả:* Backend gọi được `POST /analyze` với latency p50 `<= 5s`.
 - **AI-2.2 | Viết `llmClient.service.js` tại Backend** (`backend/src/services/llmClient.service.js`, `docs/ai-scam-detection-spec.md` mục 2.1, 2.2, 3.2)
   - Export `analyzeConversation(input)`, `computeHeuristic(input)`, `riskLevelFromScore(score)`, `SCAM_TYPES`; đổi camelCase ↔ snake_case; gọi `AWS_LLM_API_URL` (`timeout: 15000ms`, đo `latencyMs`).
@@ -151,7 +151,7 @@ Tài liệu được kiểm tra và tối ưu theo 3 tiêu chí: **đầy đủ 
 
 #### Thành viên 1 (AI / LLM)
 - **AI-4.1 | Ổn định AWS LLM & Slide Thuyết trình**
-  - Cấu hình `systemd` / `PM2` / Docker `--restart always` cho `ai-service` trên AWS; kiểm tra chi phí Bedrock trong Billing trước buổi demo.
+  - Cấu hình `systemd` / `PM2` / Docker `--restart always` cho `ai-service` trên AWS; Stop EC2 khi không dùng (hạn mức 20 USD của cả tài khoản sandbox, chạm là bị khóa).
   - Tổng hợp sơ đồ kiến trúc AI + bảng số liệu Benchmark cho slide MoMo TechDays.
 
 #### Thành viên 2 (Fullstack: Deploy Backend & Frontend)

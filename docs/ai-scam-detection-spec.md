@@ -82,9 +82,9 @@ Service **không tự trích xuất link** từ văn bản; danh sách link lấ
   3. Tách `host` theo `.` và `-`, bỏ phần TLD cuối → danh sách `tokens`, mỗi token qua `normalizeLookalike`.
   4. Brand `BRANDS = ['momo', 'vietcombank', 'bidv', 'mbbank', 'techcombank', 'shopee', 'dichvucong']`. Gắn `'typosquatting'` nếu có token mà:
      - bằng đúng một brand (sau chuẩn hóa), **hoặc**
-     - `levenshteinDistance(token, brand)` trong khoảng `1..1` với brand dài `< 6` ký tự, `1..2` với brand dài `>= 6` ký tự, **hoặc**
+     - token dài `>= brand.length - 1` và `levenshteinDistance(token, brand)` trong khoảng `1..1` với brand dài `< 6` ký tự, `1..2` với brand dài `>= 6` ký tự (điều kiện độ dài tránh gắn nhầm token ngắn như `shop` trong `shop.com`), **hoặc**
      - `host` chứa brand và một từ khóa `['xacminh', 'xacthuc', 'login', 'support', 'hotro', 'verify']`.
-  - Kiểm thử bắt buộc: `http://m0mo-xacminh.xyz` → `['suspicious_tld', 'typosquatting']`; `https://momo.vn`, `https://www.vietcombank.com.vn/abc` → `[]`; `http://abc.com/vneid.apk` → `['apk_download']`.
+  - Kiểm thử bắt buộc: `http://m0mo-xacminh.xyz` → `['suspicious_tld', 'typosquatting']`; `https://momo.vn`, `https://www.vietcombank.com.vn/abc`, `https://shop.com` → `[]`; `http://abc.com/vneid.apk` → `['apk_download']`.
 - `levenshteinDistance` tự viết (không thêm thư viện).
 - **Google Safe Browsing (chạy song song, không thay thế heuristic):** Heuristic bắt link mới, Safe Browsing bắt link đã bị biết là độc hại. Nếu `process.env.GOOGLE_SAFE_BROWSING_KEY` có giá trị, gọi `POST https://safebrowsing.googleapis.com/v4/threatMatches:find` bằng `fetch` có sẵn của Node kèm `signal: AbortSignal.timeout(2000)`, cache kết quả theo URL trong bộ nhớ. Không có key, lỗi hoặc timeout → `safe_browsing_flagged: false`, không làm sập luồng. Server **không** tự truy cập (fetch) URL của người dùng (tránh SSRF).
 
