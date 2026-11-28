@@ -13,6 +13,7 @@ const chatRoutes = require('./routes/chat.routes');
 const scamCheckRoutes = require('./routes/scamCheck.routes');
 const safetyRoutes = require('./routes/safety.routes');
 const adminRoutes = require('./routes/admin.routes');
+const { registerChatSocket } = require('./sockets/chat.socket');
 
 const app = express();
 const server = http.createServer(app);
@@ -22,6 +23,7 @@ const io = new Server(server, {
 
 // Cho các route (ví dụ safety.routes) lấy io qua req.app.get('io') để emit sự kiện.
 app.set('io', io);
+registerChatSocket(io);
 
 app.use(cors({ origin: env.CLIENT_URL }));
 app.use(express.json());
