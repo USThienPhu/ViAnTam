@@ -36,6 +36,8 @@ def test_hybrid_score_lay_max_va_san_blacklist():
     assert hybrid_score(None, 15, inp) == 15
     inp_bl = {"links": [{"inBlacklist": True}], "qrTransfers": []}
     assert hybrid_score(10, 0, inp_bl) == 85
+    inp_user = {"links": [{"inBlacklist": True, "sender": "user"}], "qrTransfers": []}
+    assert hybrid_score(10, 0, inp_user) == 10
     inp_pending = {"links": [{"blacklistPending": True}], "qrTransfers": []}
     assert hybrid_score(10, 0, inp_pending) == 10
 

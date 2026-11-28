@@ -80,7 +80,7 @@ Service **không tự trích xuất link** từ văn bản; danh sách link lấ
   1. `host = new URL(url).hostname`, bỏ tiền tố `www.`.
   2. Danh sách chính chủ `OFFICIAL = ['momo.vn', 'vietcombank.com.vn', 'bidv.com.vn', 'mbbank.com.vn', 'techcombank.com.vn', 'shopee.vn', 'dichvucong.gov.vn']`. Nếu `host` bằng hoặc kết thúc bằng `'.' + official` → hợp lệ, **không** gắn flag.
   3. Tách `host` theo `.` và `-`, bỏ phần TLD cuối → danh sách `tokens`, mỗi token qua `normalizeLookalike`.
-  4. Brand `BRANDS = ['momo', 'vietcombank', 'bidv', 'mbbank', 'techcombank', 'shopee', 'dichvucong']`. Gắn `'typosquatting'` nếu có token mà:
+  4. Brand `BRANDS = ['momo', 'vietcombank', 'bidv', 'mbbank', 'techcombank', 'shopee', 'dichvucong']`. Token là tên ngân hàng/ví thật gần giống brand (`LEGIT_LOOKALIKE_TOKENS`: `vpbank`, `tpbank`, `hdbank`, `abbank`, `lpbank`, `acb`, `vib`, `shb`, `msb`, `ocb`, `scb`, `seabank`, `namabank`, `bacabank`, `vietinbank`, `agribank`, `sacombank`, `eximbank`, `zalopay`) thì bỏ qua so khoảng cách. Gắn `'typosquatting'` nếu có token mà:
      - bằng đúng một brand (sau chuẩn hóa), **hoặc**
      - token dài `>= brand.length - 1` và `levenshteinDistance(token, brand)` trong khoảng `1..1` với brand dài `< 6` ký tự, `1..2` với brand dài `>= 6` ký tự (điều kiện độ dài tránh gắn nhầm token ngắn như `shop` trong `shop.com`), **hoặc**
      - `host` chứa brand và một từ khóa `['xacminh', 'xacthuc', 'login', 'support', 'hotro', 'verify']`.
@@ -138,7 +138,7 @@ Service **không tự trích xuất link** từ văn bản; danh sách link lấ
 
 **Hợp nhất kết quả (cách 1 — hybrid, chỉ đặt ở đây, route không làm lại):**
 1. `riskScore = max(llmScore ?? 0, heuristicScore)`.
-2. **Sàn cứng Blacklist:** Nếu bất kỳ link hoặc STK QR nào có `inBlacklist === true` (Blacklist `confirmed`) → `riskScore = Math.max(riskScore, 85)`. Bản ghi `pending` **không** kích hoạt sàn này (tránh việc 1 báo cáo ác ý làm mọi hội thoại chứa link/STK đó bị đỏ).
+2. **Sàn cứng Blacklist:** Nếu bất kỳ link hoặc STK QR **của đối phương** (`sender !== 'user'`; thiếu `sender` coi là đối phương) có `inBlacklist === true` (Blacklist `confirmed`) → `riskScore = Math.max(riskScore, 85)`. Link/STK do chính người dùng gửi (ví dụ chuyển tiếp để cảnh báo) không kích hoạt sàn. Bản ghi `pending` **không** kích hoạt sàn này (tránh việc 1 báo cáo ác ý làm mọi hội thoại chứa link/STK đó bị đỏ).
 3. `riskLevel = riskLevelFromScore(riskScore)`.
 4. `scamType`: dùng của LLM; nếu LLM lỗi hoặc trả `'Khác'`/`'Chưa xác định'` thì dùng của heuristic.
 5. `suspiciousSigns`: dùng của LLM (đã được `ai-service` kiểm tra trích dẫn); nếu `heuristicScore > (llmScore ?? 0)` thì nối thêm dấu hiệu của heuristic (bỏ trùng theo `quote`). `advice`: của LLM, hoặc bộ lời khuyên cố định theo `riskLevel` khi LLM lỗi.

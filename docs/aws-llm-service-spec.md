@@ -88,7 +88,7 @@ class AnalyzeResult(AnalyzeResponse):      # Body trả về của POST /analyze
   - **`temperature` luôn bằng `0`** để cùng một hội thoại cho ra cùng một điểm (tránh demo hôm nay 68, mai 74).
   - Trả về `response["output"]["message"]["content"][0]["text"]`.
   - Nếu model chính lỗi (`ThrottlingException`, `ModelTimeoutException`, lỗi mạng) và `BEDROCK_FALLBACK_MODEL_ID` có giá trị → thử lại 1 lần với model dự phòng.
-- Toàn bộ thời gian xử lý `/analyze` phải `< 12s` để nằm trong `timeout: 15000` của backend.
+- Toàn bộ thời gian xử lý `/analyze` phải `< 12s` để nằm trong `timeout: 15000` của backend: botocore `retries={"mode": "standard", "max_attempts": 1}` (không tự retry); quá `6s` kể từ lúc nhận request thì **không** thử model dự phòng và **không** retry JSON nữa (trả `502`).
 
 ## 4. Bảo mật, Xử lý lỗi JSON & Kiểm tra trích dẫn
 - **Auth:** Middleware kiểm tra `x_api_key == os.getenv("AWS_LLM_API_KEY")`, sai trả `401`.

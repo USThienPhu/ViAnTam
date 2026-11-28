@@ -125,6 +125,17 @@ describe('analyzeConversation', () => {
     assert.equal(r.riskLevel, 'high');
   });
 
+  test('Blacklist confirmed do chính người dùng gửi không kích hoạt sàn 85', async () => {
+    const { fetchImpl } = llmReply(OK({ risk_score: 10 }));
+    const input = {
+      ...CHU_TRO,
+      links: [{ url: 'http://m0mo-xacminh.xyz', flags: ['typosquatting'], sender: 'user', inBlacklist: true }],
+    };
+    const r = await analyzeConversation(input, opts(fetchImpl));
+    assert.equal(r.riskScore, 10);
+    assert.equal(r.riskLevel, 'low');
+  });
+
   test('Blacklist pending không kích hoạt sàn 85', async () => {
     const { fetchImpl } = llmReply(OK({ risk_score: 10 }));
     const input = { ...CHU_TRO, qrTransfers: [{ bankName: 'BIDV', accountNumber: '1', sender: 'target', blacklistPending: true }] };
