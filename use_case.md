@@ -6,7 +6,7 @@ Tài liệu mô tả toàn bộ các Use Case của hệ thống **AegisAI** ph�
 - **Người dùng (User):** Người sử dụng ứng dụng chat và công cụ AI kiểm tra lừa đảo.
 - **Đối phương (Peer):** Người dùng khác đang nhắn tin 1-1 với User.
 - **Quản trị viên (Admin):** Người theo dõi các tài khoản/tài nguyên bị báo cáo nhiều lần và quản lý danh sách đen.
-- **Hệ thống AI (AWS Custom LLM):** Dịch vụ mô hình ngôn ngữ lớn chạy trên AWS tiếp nhận dữ liệu đã tiền xử lý và trả về đánh giá rủi ro.
+- **Hệ thống AI (AI Scam Detection Engine trên AWS):** Dịch vụ FastAPI trên AWS gọi mô hình nền qua Amazon Bedrock, tiếp nhận dữ liệu đã tiền xử lý và trả về đánh giá rủi ro.
 
 ---
 
@@ -16,7 +16,7 @@ Tài liệu mô tả toàn bộ các Use Case của hệ thống **AegisAI** ph�
 flowchart LR
     User(["Người dùng (User)"])
     Admin(["Quản trị viên (Admin)"])
-    AI(["AWS Custom LLM"])
+    AI(["AI Scam Detection Engine (AWS Bedrock)"])
 
     subgraph AegisAI["Hệ thống AegisAI"]
         UC01["UC-01: Đăng ký / Đăng nhập"]
@@ -55,7 +55,7 @@ flowchart LR
 |---|---|---|---|---|
 | **UC-01** | Đăng ký & Đăng nhập | User, Admin | P0 (Bắt buộc) | Tạo tài khoản mới hoặc đăng nhập nhận JWT token để vào hệ thống chat. |
 | **UC-02** | Chat 1-1 & Gửi ảnh QR | User, Peer | P0 (Bắt buộc) | Gửi/nhận tin nhắn văn bản và ảnh theo thời gian thực qua Socket.IO; tự động giải mã VietQR khi gửi ảnh. |
-| **UC-03** | Kiểm tra lừa đảo (On-demand) | User, AWS LLM | P0 (Bắt buộc) | Người dùng bấm nút kiểm tra, xác nhận quyền riêng tư; hệ thống tiền xử lý Link/QR/Blacklist và gọi AWS LLM đánh giá. |
+| **UC-03** | Kiểm tra lừa đảo (On-demand) | User, AWS LLM | P0 (Bắt buộc) | Người dùng bấm nút kiểm tra, xác nhận quyền riêng tư; hệ thống tiền xử lý Link/QR/Blacklist, gọi AI trên AWS Bedrock và hợp nhất với điểm Heuristic. |
 | **UC-04** | Trả lời câu hỏi làm rõ | User | P0 (Bắt buộc) | Khi điểm rủi ro từ 30–69, hiển thị tối đa 3 câu hỏi Có/Không/Không chắc để cập nhật điểm theo bảng trọng số. |
 | **UC-05** | Báo cáo tài khoản | User | P0 (Bắt buộc) | Gửi báo cáo kèm lý do và tin nhắn bằng chứng; hệ thống tự động cộng số lần báo cáo và cập nhật Blacklist. |
 | **UC-06** | Chặn / Bỏ chặn người dùng | User | P0 (Bắt buộc) | Ngăn chặn đối phương gửi tin nhắn mới tới mình qua Socket.IO. |

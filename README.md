@@ -2,20 +2,20 @@
 
 ## 1. Giới thiệu
 
-AegisAI là một nền tảng web nhắn tin demo tích hợp AI phòng chống lừa đảo trực tuyến (dự án tham gia **MoMo TechDays**). Phần nhắn tin được giữ ở mức gọn nhẹ để tập trung vào trọng tâm của dự án: **xây dựng mô hình AI (Custom LLM) nhận diện lừa đảo** và các công cụ bảo vệ người dùng đi kèm (giải mã VietQR đa ngân hàng, phân tích link, hỏi làm rõ, cảnh báo, chặn và báo cáo tài khoản).
+AegisAI là một nền tảng web nhắn tin demo tích hợp AI phòng chống lừa đảo trực tuyến (dự án tham gia **MoMo TechDays**). Phần nhắn tin được giữ ở mức gọn nhẹ để tập trung vào trọng tâm của dự án: **xây dựng AI Scam Detection Engine nhận diện lừa đảo** và các công cụ bảo vệ người dùng đi kèm (giải mã VietQR đa ngân hàng, phân tích link, hỏi làm rõ, cảnh báo, chặn và báo cáo tài khoản).
 
 Khi nghi ngờ một cuộc trò chuyện, người dùng chủ động bấm **"Kiểm tra lừa đảo"**. Hệ thống chỉ đọc tin nhắn tại thời điểm người dùng yêu cầu, tiền xử lý các tín hiệu kỹ thuật (Link, mã VietQR, Blacklist) và gửi sang mô hình LLM để trả về mức độ rủi ro, dấu hiệu đáng ngờ và lời khuyên hành động. Kết quả chỉ mang tính tham khảo, không khẳng định chắc chắn một người là kẻ lừa đảo.
 
 ## 2. Mục tiêu
 
-- Xây dựng **Custom LLM riêng** chuyên sâu về domain chống lừa đảo tại Việt Nam, triển khai trên **AWS**.
+- Xây dựng **AI Scam Detection Engine** cho domain lừa đảo tại Việt Nam: mô hình nền trên **Amazon Bedrock** được tùy chỉnh bằng prompt + few-shot, kết hợp pipeline đa tín hiệu tự xây (heuristic link, parser VietQR, blacklist) và bộ fallback khi AI gián đoạn. Dự án không fine-tune hay tự huấn luyện model.
 - Kết hợp đa tín hiệu (văn bản hội thoại, đường link, tên người dùng, mã QR chuyển khoản VietQR) thay vì chỉ đọc văn bản đơn thuần.
 - Cung cấp công cụ tự bảo vệ đầy đủ: hỏi làm rõ khi nghi ngờ, cảnh báo tự động, báo cáo, chặn, và trang quản trị theo dõi tài khoản bị báo cáo nhiều lần.
-- Thiết kế kiến trúc chuẩn để thực hiện **AI-Driven Development**, có sẵn bộ tài liệu đặc tả (`docs/spec.md`), bảng Use Case (`use_case.md`) và phân chia công việc 7 ngày (`task.md`) cho nhóm 3 người.
+- Thiết kế kiến trúc chuẩn để thực hiện **AI-Driven Development**, có sẵn bộ tài liệu đặc tả (`docs/`), bảng Use Case (`use_case.md`) và phân chia công việc 4 ngày (`task.md`) cho nhóm 3 người.
 
 ## 3. Phạm vi
 
-**Làm (MVP hoàn chỉnh trong 7 ngày)**
+**Làm (MVP hoàn chỉnh trong 4 ngày)**
 - Đăng ký, đăng nhập (JWT + bcrypt).
 - Chat 1-1 realtime (văn bản và ảnh chứa mã QR).
 - Module AI phát hiện lừa đảo (Mục 4) và các tính năng an toàn (Mục 5).
@@ -34,7 +34,7 @@ Người dùng chọn một cuộc hội thoại và bấm **"Kiểm tra lừa �
 | Yếu tố | Nội dung phân tích |
 |---|---|
 | Nội dung hội thoại | Kịch bản lừa đảo phổ biến tại VN: tạo áp lực thời gian, hứa lãi suất cao, giả danh ngân hàng/ví điện tử/công an/shipper, yêu cầu OTP, mời đầu tư, tuyển CTV online, tình cảm rồi vay tiền. |
-| Đường link | **Heuristic nội bộ + Fallback Google Safe Browsing API**: phát hiện tên miền giả mạo (typosquatting như `m0mo.vn`), link rút gọn (`bit.ly`, `tinyurl`), tên miền mới/đuôi rủi ro (`.xyz`, `.top`, `.tk`), link IP trực tiếp. |
+| Đường link | **Heuristic nội bộ + Google Safe Browsing API (chạy song song)**: phát hiện tên miền giả mạo (typosquatting như `m0mo.vn`), link rút gọn (`bit.ly`, `tinyurl`), đuôi rủi ro (`.xyz`, `.top`, `.tk`), link IP trực tiếp, link tải file `.apk`. Đây là tín hiệu rủi ro, không phải kết luận độc hại. |
 | Tên người dùng | Giả danh tổ chức/nhân viên hỗ trợ, ký tự lạ, tài khoản có lịch sử bị báo cáo nhiều lần. |
 | Mã QR chuyển tiền | Giải mã chuẩn **EMVCo / VietQR** (hỗ trợ tất cả ngân hàng VN như **BIDV, MBBank, Vietcombank, Techcombank, ACB, MoMo...** thông qua mã BIN). Trích xuất ngân hàng, số tài khoản, số tiền, nội dung chuyển khoản và đối chiếu `blacklist`. |
 
@@ -60,7 +60,7 @@ Khi điểm rủi ro nằm ở vùng lưng chừng (30 đến 69), AI không k�
 - **Chặn người dùng (`blocks`):** người bị chặn không thể gửi tin nhắn mới qua Socket.IO.
 - **Cảnh báo tự động:** hiển thị nhãn cảnh báo trên tài khoản bị báo cáo nhiều lần (`reportCount >= 3`), hoặc khi tin nhắn chứa link/QR nằm trong `blacklist`.
 - **Trang Admin đơn giản:** xem danh sách các tài khoản/link/STK bị báo cáo nhiều lần, chi tiết bằng chứng và xác nhận đưa vào `blacklist` chính thức.
-- **Lịch sử kiểm tra & Phản hồi AI:** xem lại các lần kiểm tra và bấm **Đúng / Sai** để thu thập dữ liệu cải thiện Custom LLM.
+- **Lịch sử kiểm tra & Phản hồi AI:** xem lại các lần kiểm tra và bấm **Đúng / Sai** để thu thập phản hồi cải thiện prompt, luật heuristic và bộ test (phản hồi chưa được coi là nhãn chuẩn khi chưa kiểm duyệt).
 - **Mẹo phòng chống lừa đảo:** trang hướng dẫn nhận biết các hình thức lừa đảo phổ biến.
 
 ## 6. Luồng hoạt động của AI
@@ -69,19 +69,24 @@ Khi điểm rủi ro nằm ở vùng lưng chừng (30 đến 69), AI không k�
 Người dùng bấm "Kiểm tra lừa đảo" (xác nhận thông báo quyền riêng tư)
         |
         v
-Backend Node.js thu thập: 20-30 tin nhắn gần nhất, link, thông tin đối phương, ảnh QR
+Backend Node.js thu thập: tối đa 30 tin nhắn (5 tin đầu + 25 tin cuối nếu dài hơn), link, thông tin đối phương, ảnh QR
         |
         v
 Tiền xử lý tại Node.js
-  - Trích xuất link & chạy Heuristic + Google Safe Browsing (fallback)
+  - Phân tích link bằng Heuristic + Google Safe Browsing (song song)
   - Giải mã ảnh QR (jimp + jsqr) -> Parse chuẩn VietQR/EMVCo (BIDV, MB, VCB...)
-  - Đối chiếu MongoDB blacklist & số lần bị báo cáo
+  - Đối chiếu MongoDB blacklist (chỉ bản ghi Admin đã xác nhận mới tính là trúng) & số lần bị báo cáo
+  - Tính điểm Heuristic theo luật cố định (chỉ tính tín hiệu do đối phương gửi)
         |
         v
-Gửi Text Payload chuẩn hóa sang AWS Custom LLM Service (FastAPI / vLLM)
+Gửi payload chuẩn hóa sang AI Service trên AWS (FastAPI trên EC2 -> Amazon Bedrock)
         |
         v
-AWS LLM trả về JSON: risk_score, risk_level, suspicious_signs, scam_type, advice
+AWS LLM trả về JSON: risk_score, suspicious_signs (đã kiểm tra trích dẫn), scam_type, advice
+        |
+        v
+Backend hợp nhất: điểm = max(điểm LLM, điểm Heuristic); trúng Blacklist đã xác nhận -> tối thiểu 85
+(AI lỗi/timeout -> dùng điểm Heuristic)
         |
         v
 Điểm ở vùng chưa chắc chắn (30 đến 69)?
@@ -99,7 +104,7 @@ Lưu lịch sử vào MongoDB (scam_checks)
 | **Frontend** | React + Vite + TailwindCSS (`socket.io-client`, `axios`, `lucide-react`) |
 | **Backend** | Node.js + Express + Socket.IO |
 | **Cơ sở dữ liệu** | **MongoDB** (Mongoose + MongoDB Atlas) |
-| **AI / LLM** | **Custom LLM** domain chống lừa đảo, nhận đầu vào Text thuần, triển khai trên **AWS** (FastAPI / vLLM) |
+| **AI / LLM** | **AI Scam Detection Engine**: FastAPI trên AWS EC2 gọi mô hình nền qua **Amazon Bedrock** (prompt + few-shot), hợp nhất với Heuristic tại Backend |
 | **Đọc mã QR** | `jimp` + `jsqr` + Bộ parser EMVCo/VietQR (hỗ trợ mọi ngân hàng VN) |
 | **Kiểm tra link** | Bộ luật Heuristic nội bộ + Fallback Google Safe Browsing API |
 
@@ -110,7 +115,7 @@ Lưu lịch sử vào MongoDB (scam_checks)
 - `reports`: `_id`, `reporterId`, `reportedUserId`, `reason`, `description`, `evidenceMessageIds`, `status`, `createdAt`.
 - `blocks`: `_id`, `blockerId`, `blockedId`, `createdAt`.
 - `blacklist`: `_id`, `type` (`bank_account`/`link`/`user`), `value`, `bankBin`, `reportCount`, `status`, `reasonSummary`, `updatedAt`.
-- `scam_checks`: `_id`, `requesterId`, `targetUserId`, `conversationId`, `initialScore`, `finalScore`, `riskLevel`, `scamType`, `suspiciousSigns`, `advice`, `clarificationQuestions`, `userFeedback`, `createdAt`.
+- `scam_checks`: `_id`, `requesterId`, `targetUserId`, `conversationId`, `initialScore`, `finalScore`, `riskLevel`, `scamType`, `suspiciousSigns`, `advice`, `clarificationQuestions`, `analysisSource`, `llmScore`, `heuristicScore`, `modelId`, `latencyMs`, `userFeedback`, `createdAt`.
 - `practice_sessions` *(mở rộng)*: `_id`, `userId`, `scenarioId`, `userGuess`, `actualLabel`, `turnsCount`, `createdAt`.
 
 ## 9. Quyền riêng tư và bảo mật
@@ -120,14 +125,15 @@ Lưu lịch sử vào MongoDB (scam_checks)
 - Chỉ gửi tối đa 20–30 tin nhắn gần nhất, không gửi mật khẩu hay token.
 - Mật khẩu băm bằng `bcrypt`, xác thực bằng `JWT`, API key và DB URI lưu trong `.env`.
 - Kiểm tra loại và dung lượng ảnh tải lên; giới hạn tần suất (rate limit) gọi AI.
-- **Chống Prompt Injection:** Tin nhắn chat được bọc trong thẻ phân cách dữ liệu (`<CONVERSATION_DATA>`) để LLM không thực thi các câu lệnh giả mạo do kẻ lừa đảo chèn vào tin nhắn.
+- **Chống Prompt Injection (nhiều lớp):** tin nhắn được làm sạch (xóa thẻ giả, ký tự vô hình) và đưa vào dạng JSON trong vùng `<CONVERSATION_DATA>`; LLM không có quyền hành động; output được kiểm tra schema và trích dẫn; điểm cuối được hợp nhất với Heuristic và Blacklist nên LLM bị thao túng cũng không thể hạ cảnh báo của các tín hiệu chắc chắn; bộ test có các ca injection chạy tự động.
+- AI Service không ghi log nội dung tin nhắn.
 
-## 10. Tài liệu dự án & Tổ chức nhóm (3 người - 7 ngày)
+## 10. Tài liệu dự án & Tổ chức nhóm (3 người - 4 ngày)
 
 Dự án được tổ chức theo hướng **AI-Driven Development** với các tài liệu đi kèm:
 - Thư mục [`docs/`](docs/architecture-spec.md): Bộ tài liệu đặc tả phân tách theo từng module (`architecture-spec.md`, `auth-spec.md`, `chat-spec.md`, `ai-scam-detection-spec.md`, `safety-admin-spec.md`, `practice-mode-spec.md`) để AI coding agent đọc đúng ngữ cảnh khi phát triển.
 - [`use_case.md`](use_case.md): Toàn bộ bảng Use Case và đặc tả chi tiết luồng nghiệp vụ.
-- [`task.md`](task.md): Bảng phân chia công việc chi tiết theo 7 ngày cho 3 thành viên (1 AI/LLM + 2 Web/Backend).
+- [`task.md`](task.md): Bảng phân chia công việc chi tiết theo 4 ngày cho 3 thành viên (1 AI/LLM + 2 Web/Backend).
 
 ## 11. Tính năng mở rộng (làm khi còn thời gian)
 

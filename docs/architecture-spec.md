@@ -5,7 +5,7 @@ Tài liệu này mô tả kiến trúc tổng thể, cấu trúc thư mục, bi�
 ## 1. Danh mục tài liệu Spec theo Module
 - [`auth-spec.md`](auth-spec.md): Đăng ký, đăng nhập, JWT, phân quyền `user` / `admin`.
 - [`chat-spec.md`](chat-spec.md): Chat 1-1 realtime (Socket.IO), upload ảnh, giải mã VietQR đa ngân hàng, interface mở rộng `ChatPartner`.
-- [`ai-scam-detection-spec.md`](ai-scam-detection-spec.md): Luồng kiểm tra lừa đảo On-demand, Link Analyzer, Contract AWS Custom LLM, 3 câu hỏi làm rõ & bảng trọng số.
+- [`ai-scam-detection-spec.md`](ai-scam-detection-spec.md): Luồng kiểm tra lừa đảo On-demand, Link Analyzer, Contract AI Service (Bedrock), 3 câu hỏi làm rõ & bảng trọng số.
 - [`safety-admin-spec.md`](safety-admin-spec.md): Báo cáo, Chặn, Blacklist, Cảnh báo tự động, Trang Mẹo phòng chống & Admin Dashboard.
 - [`practice-mode-spec.md`](practice-mode-spec.md): Chế độ luyện tập với chatbot mô phỏng (Mục 12 — mở rộng khi dư thời gian).
 - [`aws-llm-service-spec.md`](aws-llm-service-spec.md): Đặc tả riêng cho `ai-service/` trên AWS (FastAPI + Amazon Bedrock, System Prompt chống Injection, Evaluation).
