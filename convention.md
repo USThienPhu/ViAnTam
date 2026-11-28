@@ -1,6 +1,6 @@
 # Quy ước chung của dự án (`convention.md`)
 
-Tài liệu này quy định các tiêu chuẩn kỹ thuật, đặt tên, Git workflow và định dạng dữ liệu thống nhất cho cả **3 thành viên** và **AI Coding Agents** trong suốt 4 ngày phát triển **AIthena**.
+Tài liệu này quy định các tiêu chuẩn kỹ thuật, đặt tên, Git workflow và định dạng dữ liệu thống nhất cho cả **3 thành viên** và **AI Coding Agents** trong suốt 4 ngày phát triển **AegisAI**.
 
 ---
 

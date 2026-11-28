@@ -1,4 +1,4 @@
-# Architecture & Shared Specification — AIthena
+# Architecture & Shared Specification — AegisAI
 
 Tài liệu này mô tả kiến trúc tổng thể, cấu trúc thư mục, biến môi trường và các quy ước dùng chung cho toàn bộ các module trong thư mục `docs/`.
 
@@ -32,7 +32,7 @@ flowchart LR
 ## 3. Cấu trúc thư mục dự án
 
 ```text
-scamguard-chat/
+aegisai/
 ├── docs/                       # Toàn bộ spec theo từng module (AI-Driven Development)
 ├── server/                     # Backend Node.js (Express + Socket.IO + Mongoose)
 │   ├── src/
@@ -59,7 +59,7 @@ scamguard-chat/
 ### `server/.env`
 ```env
 PORT=5000
-MONGODB_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/scamguard
+MONGODB_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/aegisai
 JWT_SECRET=your_super_secret_jwt_key
 CLIENT_URL=http://localhost:5173
 AWS_LLM_API_URL=http://<aws-ec2-ip>:8000/analyze

@@ -17,11 +17,20 @@ Tài liệu này mô tả chi tiết cấu trúc **Frontend (React + Vite + Tail
 | `/tips` | `TipsPage.jsx` | `ProtectedRoute` | Trang mẹo phòng chống lừa đảo tại VN |
 | `/admin` | `AdminPage.jsx` | `AdminRoute` (`user.role === 'admin'`) | Xem tài khoản bị report nhiều & duyệt Blacklist |
 
+> [!IMPORTANT]
+> **Dành cho AI Agent của TV1 và TV3 — gắn trang của bạn vào Router:**
+> Trong `frontend/src/App.jsx`, các route `/history`, `/tips` và `/admin` hiện trỏ tới `<PlaceholderPage title="..." />` (trang giữ chỗ do TV2 tạo) vì trang thật chưa có. Khi hoàn thành trang của mình, hãy sửa **đúng dòng route tương ứng** trong `App.jsx`:
+> 1. Thêm `import XxxPage from './pages/XxxPage';` ở đầu file (trang phải có `export default`).
+> 2. Đổi `element={<PlaceholderPage title="..." />}` của route đó thành `element={<XxxPage />}`.
+>
+> Phân công: **TV1** sửa `/history` (`HistoryPage`) và `/tips` (`TipsPage`); **TV3** sửa `/admin` (`AdminPage`, giữ nguyên route nằm trong `<AdminRoute />`).
+> Không sửa các phần còn lại của `App.jsx`, `RouteGuards.jsx`, `Navbar.jsx`, `AuthContext.jsx`, `axiosInstance.js` (thuộc TV2). Cần thay đổi thì báo TV2. Gọi API luôn qua `axiosInstance` và lấy người dùng hiện tại bằng `useAuth()`.
+
 ## 3. Cây Component & Trách nhiệm chi tiết
 
 ### 3.1. `Navbar.jsx` (Dùng chung cho các trang đã đăng nhập)
 - Chiều cao cố định `h-14`, nền `bg-white border-b border-slate-200`.
-- Trái: Logo **AIthena** (màu `#D82D8B`) + icon khiên bảo vệ.
+- Trái: Logo **AegisAI** (màu `#D82D8B`) + icon khiên bảo vệ.
 - Giữa: 3–4 link điều hướng (**Tin nhắn**, **Lịch sử**, **Mẹo an toàn**, và **Quản trị** chỉ hiện khi `user.role === 'admin'`).
 - Phải: Tên `user.username` + nút **Đăng xuất**.
 

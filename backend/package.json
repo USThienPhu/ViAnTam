@@ -1,5 +1,5 @@
 {
-  "name": "scamguard-backend",
+  "name": "aegisai-backend",
   "version": "1.0.0",
   "scripts": {
     "dev": "nodemon src/app.js",

@@ -1,6 +1,6 @@
 # Theme & Visual Tokens (`theme.md`)
 
-Tài liệu này quy định **Theme chủ đạo** cho toàn bộ giao diện **AIthena** (tham gia **MoMo TechDays**). Mọi component Frontend (React + TailwindCSS) phải tuân thủ chính xác bảng màu, font chữ và tokens dưới đây.
+Tài liệu này quy định **Theme chủ đạo** cho toàn bộ giao diện **AegisAI** (tham gia **MoMo TechDays**). Mọi component Frontend (React + TailwindCSS) phải tuân thủ chính xác bảng màu, font chữ và tokens dưới đây.
 
 ---
 
