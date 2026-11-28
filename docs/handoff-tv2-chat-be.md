@@ -119,3 +119,43 @@ Nếu test chat lỗi sau khi TV3 thay `Message.js`/`Block.js`, nguyên nhân g�
 ## 8. Thông tin không liên quan đến TV1
 
 Phần này của TV2 không phụ thuộc và không ảnh hưởng `llmClient.service.js`, `linkAnalyzer.service.js` hay `ai-service/`. TV1 không cần thay đổi gì.
+
+---
+
+## 9. Frontend chat (TV2, task W2-2.2) và bước ghép nhánh với TV3
+
+Phần FE của TV2 đã xong: `pages/ChatPage.jsx`, `components/ChatWindow.jsx`, `components/MessageBubble.jsx`, `components/UserSidebar.jsx`, `hooks/useChatSocket.js`, `api/socket.js`, `api/chatApi.js`, `utils/chatFormat.js`.
+**Checkpoint cuối Ngày 2 (chat + Kiểm tra lừa đảo + Chặn + Báo cáo chạy end-to-end) chưa thể kiểm tra đầy đủ** cho đến khi TV3 merge W3-2.1 và W3-2.2, vì `ChatSafetyActions.jsx` hiện vẫn dùng dữ liệu giả (không gọi `/api/scam-check/analyze`, `/api/reports`, `/api/blocks`). Phần dưới đây dành cho TV3 và agent của TV3.
+
+### 9.1. Cách `ChatWindow` nhúng component của TV3 (interface đã chốt, không đổi)
+```jsx
+<FlaggedBanner user={selectedUser} />
+<ChatSafetyActions targetUser={safetyTarget} messages={messages} onBlockChange={onBlockChange} />
+```
+- `selectedUser` / `targetUser` là một phần tử của `GET /api/users`: `{ id, username, reportCount, isFlagged, isBlockedByMe, hasBlockedMe }`. Dùng `targetUser.id` (không phải `_id`).
+- `messages` là tối đa 100 tin gần nhất của cuộc trò chuyện, cũ -> mới, đúng như `GET /api/messages/:targetUserId`: `{ _id, senderId, receiverId, type, content, imageUrl, extractedLinks, qrData, createdAt }`. Khi gọi `/api/scam-check/analyze` hoặc `/api/reports` (`evidenceMessageIds`), dùng `message._id`.
+- `onBlockChange(nextBlocked)` nhận `true` (vừa chặn) hoặc `false` (vừa bỏ chặn). **TV3 chỉ nên gọi sau khi `POST/DELETE /api/blocks` thành công**, để giao diện không báo "đã chặn" khi server từ chối.
+- Khi `onBlockChange` được gọi, `ChatPage` cập nhật `isBlockedByMe` của người đó: khóa ô nhập và nút gửi ảnh, hiện thanh "Cuộc trò chuyện này đã bị chặn." và badge "Đã chặn" ở Sidebar. TV3 không cần làm gì thêm cho phần này.
+
+### 9.2. Điều TV3 cần biết: `targetUser` truyền vào `ChatSafetyActions` là bản chụp, không cập nhật theo thời gian thực
+`ChatSafetyActions` có effect phụ thuộc `targetUser.isBlockedByMe`; mỗi lần giá trị này đổi, effect **đóng mọi modal và xóa toast**.
+Nếu `ChatWindow` truyền thẳng object đã cập nhật, ngay sau khi bấm Chặn thì toast "Đã chặn người dùng này." bị xóa, và nút "Chặn & Báo cáo ngay" trong `ScamResultModal` sẽ đóng luôn `ReportModal` vừa mở.
+Vì không được sửa file của TV3, `ChatWindow` truyền một bản chụp theo `selectedUser.id` (`useMemo`), còn `FlaggedBanner` và khóa ô nhập vẫn dùng dữ liệu mới nhất.
+Hệ quả: trong `ChatSafetyActions`, `targetUser.isBlockedByMe` và `targetUser.isFlagged` là giá trị **lúc mở cuộc trò chuyện**, không đổi cho đến khi chọn người khác. Trạng thái chặn đang hiển thị nên lấy từ state `isBlocked` nội bộ của chính component (như hiện tại), không đọc lại từ `targetUser`.
+Nếu TV3 muốn nhận dữ liệu live, hãy bỏ `targetUser?.isBlockedByMe` khỏi mảng dependency của effect đó, rồi báo TV2 đổi `safetyTarget` thành `selectedUser`.
+
+### 9.3. Việc cần làm khi ghép nhánh (checklist kiểm tra end-to-end)
+1. Merge nhánh W3-2.1 và W3-2.2 của TV3 vào nhánh chung. Chạy `npm install`, `npm test` ở cả `backend/` và `frontend/`.
+2. Đảm bảo `ChatSafetyActions` gọi API thật thay vì dữ liệu giả, và vẫn giữ nguyên chữ ký props ở 9.1.
+3. Chạy `backend` (`npm run dev`) và `frontend` (`npm run dev`), đăng nhập hai tài khoản trên hai trình duyệt, kiểm tra theo thứ tự:
+   - Gửi tin text hai chiều, tin hiện realtime ở cả hai bên (TC-01, phần text).
+   - Gửi ảnh QR của BIDV, MBBank, Vietcombank: thẻ tóm tắt hiện đúng Ngân hàng, STK, Số tiền (TC-01, phần ảnh). Ảnh WEBP không được giải mã (xem mục 2.1).
+   - Bấm **Kiểm tra lừa đảo**, xác nhận quyền riêng tư, nhận kết quả từ AWS LLM (TC-02 đến TC-04).
+   - **Chặn** người dùng rồi đăng nhập tài khoản bị chặn ở tab khác và thử gửi tin: nhận `message_error`, ô nhập bị khóa (TC-05).
+   - **Báo cáo** từ 3 tài khoản khác nhau: người bị báo cáo có `isFlagged = true`. Banner hiện **sau khi tải lại danh sách** (xem 9.4).
+
+### 9.4. Giới hạn đã biết của FE chat
+- **Sự kiện `user_flagged` chưa được nghe ở FE.** Banner cảnh báo chỉ cập nhật khi danh sách người dùng được tải lại (mở lại trang chat). Quyết định này là có chủ đích (không làm realtime cho banner). Nếu cần, thêm `onUserFlagged` vào `hooks/useChatSocket.js` và cập nhật `isFlagged` trong `ChatPage`. Payload theo spec chỉ có `{ userId }`, không có `reportCount`.
+- **`hasBlockedMe` không cập nhật theo thời gian thực.** Nếu đối phương chặn mình khi đang chat, ô nhập vẫn mở cho đến khi gửi tin, lúc đó server trả `message_error` (`CONVERSATION_BLOCKED`) và `ChatWindow` hiện thông báo lỗi. Tải lại danh sách người dùng thì ô nhập mới bị khóa.
+- **Chấm "tin mới" ở Sidebar chỉ tồn tại trong phiên đang mở trang chat.** Rời `ChatPage` hoặc tải lại trang thì mất (server không lưu trạng thái đã đọc).
+- **Triển khai thật (Vercel + EC2):** cần backend có HTTPS. Trang HTTPS không gọi được API/Socket.IO/ảnh qua `http://`. Đặt `VITE_API_URL`, `VITE_SOCKET_URL` thành `https://...` và `CLIENT_URL` ở backend đúng địa chỉ Vercel.

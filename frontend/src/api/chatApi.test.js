@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import axiosInstance from './axiosInstance';
-import { getMessages, resolveImageUrl, uploadImage } from './chatApi';
+import { getMessages, getUsers, resolveImageUrl, uploadImage } from './chatApi';
 
 // mockApi chỉ đọc được body JSON, còn upload gửi FormData nên dùng adapter riêng ở đây.
 function fakeServer(handler) {
@@ -30,6 +30,18 @@ describe('resolveImageUrl', () => {
     ['chứa ..', '/uploads/../.env'],
   ])('trả chuỗi rỗng với %s', (_name, value) => {
     expect(resolveImageUrl(value)).toBe('');
+  });
+});
+
+describe('getUsers', () => {
+  it('gọi GET /users và trả danh sách', async () => {
+    const calls = fakeServer(() => [{ id: 'u2', username: 'ChuTro_AnhMinh' }]);
+
+    const result = await getUsers();
+
+    expect(calls[0].method).toBe('get');
+    expect(calls[0].url).toBe('/users');
+    expect(result).toEqual([{ id: 'u2', username: 'ChuTro_AnhMinh' }]);
   });
 });
 
