@@ -52,11 +52,11 @@ export default function Navbar() {
           <span className="text-base font-bold text-brand-primary">AegisAI</span>
         </NavLink>
 
-        <nav aria-label="Điều hướng chính" className="hidden flex-1 items-center justify-center gap-1 md:flex">
+        <nav aria-label="Điều hướng chính" className="hidden flex-1 items-center justify-center gap-1 lg:flex">
           {renderLinks()}
         </nav>
 
-        <div className="ml-auto hidden items-center gap-3 md:flex">
+        <div className="ml-auto hidden items-center gap-3 lg:flex">
           <span className="flex max-w-48 items-center gap-1.5 text-sm font-medium text-slate-600" title={user?.username}>
             <UserRound className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span className="truncate">{user?.username}</span>
@@ -77,14 +77,14 @@ export default function Navbar() {
           aria-expanded={menuOpen}
           aria-controls="mobile-menu"
           aria-label={menuOpen ? 'Đóng menu' : 'Mở menu'}
-          className="ml-auto flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl text-slate-900 transition-colors duration-200 hover:bg-slate-100 md:hidden"
+          className="ml-auto flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl text-slate-900 transition-colors duration-200 hover:bg-slate-100 lg:hidden"
         >
           {menuOpen ? <X className="h-6 w-6" aria-hidden="true" /> : <Menu className="h-6 w-6" aria-hidden="true" />}
         </button>
       </div>
 
       {menuOpen && (
-        <div id="mobile-menu" className="space-y-1 border-t border-slate-200 bg-white p-3 md:hidden">
+        <div id="mobile-menu" className="space-y-1 border-t border-slate-200 bg-white p-3 lg:hidden">
           <nav aria-label="Điều hướng chính (di động)" className="space-y-1">
             {renderLinks()}
           </nav>

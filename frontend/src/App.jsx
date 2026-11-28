@@ -1,7 +1,9 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { AdminRoute, ProtectedRoute, PublicOnlyRoute } from './components/RouteGuards';
+import { ToastProvider } from './context/ToastContext';
 import Navbar from './components/Navbar';
+import NetworkStatusToasts from './components/NetworkStatusToasts';
 import PlaceholderPage from './components/PlaceholderPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -23,12 +25,15 @@ import ChatPage from './pages/ChatPage';
 
 function AppLayout() {
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50">
-      <Navbar />
-      <main className="flex-1">
-        <Outlet />
-      </main>
-    </div>
+    <ToastProvider>
+      <div className="flex min-h-screen flex-col bg-slate-50">
+        <Navbar />
+        <main className="flex-1">
+          <Outlet />
+        </main>
+      </div>
+      <NetworkStatusToasts />
+    </ToastProvider>
   );
 }
 

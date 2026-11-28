@@ -1,7 +1,8 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ImagePlus, LoaderCircle, SendHorizontal, X } from 'lucide-react';
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowDown, ArrowLeft, ImagePlus, LoaderCircle, SendHorizontal } from 'lucide-react';
 import { uploadImage } from '../api/chatApi';
 import getErrorMessage from '../api/getErrorMessage';
+import { useToast } from '../context/ToastContext';
 import { getInitial } from '../utils/chatFormat';
 import FlaggedBanner from './FlaggedBanner';
 import ChatSafetyActions from './ChatSafetyActions';
@@ -11,6 +12,9 @@ const MAX_CONTENT_LENGTH = 2000; // khớp giới hạn của backend (chatPartn
 const COUNTER_THRESHOLD = 1800;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // khớp giới hạn của backend (middlewares/upload.js)
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const STICK_TO_BOTTOM_PX = 80; // cách đáy không quá 80px thì coi là đang đọc tin mới nhất
+const NOT_CONNECTED_MESSAGE = 'Chưa kết nối tới máy chủ. Vui lòng thử lại sau ít giây.';
+const UPLOADING_MESSAGE = 'Đang tải ảnh lên & giải mã QR...';
 
 const STATUS_LABELS = {
   connected: { text: 'Đã kết nối', dot: 'bg-risk-low-accent' },
@@ -27,9 +31,9 @@ const STATUS_LABELS = {
  *  - messages, loading, loadError, onRetry: lịch sử cuộc trò chuyện (do ChatPage tải)
  *  - connectionStatus: 'connecting' | 'connected' | 'disconnected' (từ useChatSocket)
  *  - sendMessage(payload): trả true nếu đã gửi qua socket, false nếu chưa kết nối
- *  - errorMessage, onDismissError: lỗi từ server (sự kiện message_error)
  *  - onBlockChange(nextBlocked): chuyển tiếp từ ChatSafetyActions để ChatPage cập nhật trạng thái chặn
  *  - onBack: quay lại danh sách người dùng (nút chỉ hiện trên màn hình nhỏ)
+ * Lỗi thoáng qua (upload sai định dạng, chưa kết nối...) hiện qua toast dùng chung (ToastContext).
  */
 export default function ChatWindow({
   selectedUser,
@@ -40,16 +44,22 @@ export default function ChatWindow({
   onRetry,
   connectionStatus = 'connecting',
   sendMessage,
-  errorMessage = '',
-  onDismissError,
   onBlockChange,
   onBack,
 }) {
+  const { showToast } = useToast();
   const [draft, setDraft] = useState('');
   const [uploading, setUploading] = useState(false);
-  const [localError, setLocalError] = useState('');
+  const [hasNewBelow, setHasNewBelow] = useState(false);
   const listRef = useRef(null);
   const fileInputRef = useRef(null);
+  // true khi người dùng đang ở gần đáy danh sách: lúc đó tin mới mới tự kéo khung xuống.
+  const stickToBottomRef = useRef(true);
+  const prevLastIdRef = useRef(null);
+  const prevLengthRef = useRef(0);
+  // Vị trí cuộn do chính code đặt. Sự kiện scroll đến muộn có thể thấy đáy đã xa hơn vì ảnh vừa nở ra,
+  // nên các sự kiện có đúng vị trí này bị bỏ qua để không hiểu nhầm là người dùng cuộn lên.
+  const programmaticTopRef = useRef(null);
 
   // ChatSafetyActions (của TV3) tự đặt lại modal và toast mỗi khi targetUser.isBlockedByMe đổi.
   // Nếu truyền thẳng selectedUser đã cập nhật, toast "Đã chặn" và ReportModal vừa mở sẽ bị đóng ngay.
@@ -59,30 +69,71 @@ export default function ChatWindow({
   const isBlocked = Boolean(selectedUser.isBlockedByMe || selectedUser.hasBlockedMe);
   const isConnected = connectionStatus === 'connected';
   const status = STATUS_LABELS[connectionStatus] || STATUS_LABELS.connecting;
-  const shownError = localError || errorMessage;
   const trimmed = draft.trim();
   const canSend = isConnected && !isBlocked && !uploading && trimmed.length > 0;
   const canAttach = isConnected && !isBlocked && !uploading;
 
-  // Tự cuộn xuống tin mới nhất.
-  useEffect(() => {
-    const list = listRef.current;
-    if (list) list.scrollTop = list.scrollHeight;
-  }, [messages.length, loading, selectedUser.id]);
+  const lastMessage = messages[messages.length - 1];
+  const lastId = lastMessage ? String(lastMessage._id) : null;
 
-  function dismissError() {
-    setLocalError('');
-    onDismissError?.();
+  const scrollToBottom = useCallback(() => {
+    const list = listRef.current;
+    if (!list) return;
+    list.scrollTop = list.scrollHeight;
+    programmaticTopRef.current = list.scrollTop;
+    stickToBottomRef.current = true;
+    setHasNewBelow(false);
+  }, []);
+
+  // Tự cuộn xuống khi có tin mới ở cuối, nhưng không giật người đang đọc tin cũ:
+  // tin của chính mình luôn kéo xuống; tin của người kia chỉ kéo xuống khi đang ở gần đáy,
+  // ngược lại hiện nút "Tin nhắn mới". Lịch sử mới tải xong (đang ở đáy) cũng được kéo xuống.
+  useEffect(() => {
+    const prevLastId = prevLastIdRef.current;
+    const prevLength = prevLengthRef.current;
+    prevLastIdRef.current = lastId;
+    prevLengthRef.current = messages.length;
+    if (lastId === prevLastId && messages.length === prevLength) return;
+
+    const lastChanged = lastId !== prevLastId;
+    const lastIsMine = lastMessage && String(lastMessage.senderId) === String(currentUserId);
+    if ((lastChanged && lastIsMine) || stickToBottomRef.current) {
+      scrollToBottom();
+    } else if (lastChanged && prevLastId !== null) {
+      setHasNewBelow(true);
+    }
+  }, [messages, lastId, lastMessage, currentUserId, scrollToBottom]);
+
+  function handleScroll() {
+    const list = listRef.current;
+    if (!list) return;
+    if (programmaticTopRef.current !== null && list.scrollTop === programmaticTopRef.current) {
+      programmaticTopRef.current = null;
+      return;
+    }
+    programmaticTopRef.current = null;
+    const distanceFromBottom = list.scrollHeight - list.scrollTop - list.clientHeight;
+    const atBottom = distanceFromBottom <= STICK_TO_BOTTOM_PX;
+    stickToBottomRef.current = atBottom;
+    if (atBottom) setHasNewBelow(false);
+  }
+
+  // Ảnh tải xong làm bong bóng cao lên mà không phát sự kiện cuộn; nếu đang ở đáy thì cuộn lại.
+  function handleMediaSettled() {
+    if (stickToBottomRef.current) scrollToBottom();
+  }
+
+  function notifyError(message) {
+    showToast(message, { type: 'error' });
   }
 
   function handleSend() {
     if (!canSend) return;
     const sent = sendMessage?.({ receiverId: selectedUser.id, type: 'text', content: trimmed });
     if (!sent) {
-      setLocalError('Chưa kết nối tới máy chủ. Vui lòng thử lại sau ít giây.');
+      notifyError(NOT_CONNECTED_MESSAGE);
       return;
     }
-    setLocalError('');
     setDraft('');
   }
 
@@ -106,22 +157,21 @@ export default function ChatWindow({
     if (!file || !canAttach) return;
 
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-      setLocalError('Chỉ hỗ trợ ảnh JPG, PNG hoặc WEBP.');
+      notifyError('Chỉ hỗ trợ ảnh JPG, PNG hoặc WEBP.');
       return;
     }
     if (file.size > MAX_IMAGE_BYTES) {
-      setLocalError('Ảnh quá lớn. Dung lượng tối đa là 5MB.');
+      notifyError('Ảnh quá lớn. Dung lượng tối đa là 5MB.');
       return;
     }
 
-    setLocalError('');
     setUploading(true);
     try {
       const { imageUrl, qrData } = await uploadImage(file);
       const sent = sendMessage?.({ receiverId: selectedUser.id, type: 'image', imageUrl, qrData });
-      if (!sent) setLocalError('Chưa kết nối tới máy chủ. Vui lòng thử lại sau ít giây.');
+      if (!sent) notifyError(NOT_CONNECTED_MESSAGE);
     } catch (error) {
-      setLocalError(getErrorMessage(error, 'Không thể tải ảnh lên. Vui lòng thử lại.'));
+      notifyError(getErrorMessage(error, 'Không thể tải ảnh lên. Vui lòng thử lại.'));
     } finally {
       setUploading(false);
     }
@@ -162,23 +212,24 @@ export default function ChatWindow({
         key={message._id}
         message={message}
         isMine={String(message.senderId) === String(currentUserId)}
+        onMediaSettled={handleMediaSettled}
       />
     ));
   }
 
   return (
-    <section className="flex h-full min-h-0 flex-1 flex-col bg-white" aria-label={`Cuộc trò chuyện với ${selectedUser.username}`}>
-      <header className="flex flex-wrap items-center gap-3 border-b border-slate-200 px-4 py-3">
+    <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col bg-white" aria-label={`Cuộc trò chuyện với ${selectedUser.username}`}>
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-slate-200 px-4 py-3">
         <button
           type="button"
           onClick={onBack}
           aria-label="Quay lại danh sách"
-          className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl text-slate-900 transition-colors duration-200 hover:bg-slate-100 md:hidden"
+          className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl text-slate-900 transition-colors duration-200 hover:bg-slate-100 md:hidden"
         >
           <ArrowLeft className="h-5 w-5" aria-hidden="true" />
         </button>
 
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3 md:flex-none">
           <span
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-soft text-sm font-bold text-brand-primary"
             aria-hidden="true"
@@ -194,44 +245,47 @@ export default function ChatWindow({
           </div>
         </div>
 
-        <div className="ml-auto">
+        {/* Màn hình nhỏ: 3 nút an toàn xuống hàng riêng, tự xuống dòng nếu vẫn chật. */}
+        <div className="w-full md:ml-auto md:w-auto">
           <ChatSafetyActions targetUser={safetyTarget} messages={messages} onBlockChange={onBlockChange} />
         </div>
       </header>
 
       <FlaggedBanner user={selectedUser} />
 
-      <div
-        ref={listRef}
-        role="log"
-        aria-label="Tin nhắn"
-        aria-live="polite"
-        className="flex-1 space-y-3 overflow-y-auto bg-slate-50 px-4 py-4"
-      >
-        {renderMessages()}
-      </div>
-
-      {shownError && (
+      <div className="relative min-h-0 flex-1 bg-slate-50">
         <div
-          role="alert"
-          className="flex items-start justify-between gap-2 border-t border-risk-high-border bg-risk-high-bg px-4 py-2.5 text-sm text-risk-high-text"
+          ref={listRef}
+          onScroll={handleScroll}
+          role="log"
+          aria-label="Tin nhắn"
+          aria-live="polite"
+          className="h-full space-y-3 overflow-y-auto px-4 py-4"
         >
-          <span>{shownError}</span>
+          {renderMessages()}
+        </div>
+
+        {hasNewBelow && (
           <button
             type="button"
-            onClick={dismissError}
-            aria-label="Đóng thông báo lỗi"
-            className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg hover:bg-white/60"
+            onClick={scrollToBottom}
+            className="absolute bottom-3 left-1/2 flex min-h-11 -translate-x-1/2 cursor-pointer items-center gap-1.5 rounded-full bg-brand-primary px-4 text-sm font-semibold text-white shadow-lg transition-colors duration-200 hover:bg-brand-hover"
           >
-            <X className="h-4 w-4" aria-hidden="true" />
+            <ArrowDown className="h-4 w-4" aria-hidden="true" />
+            Tin nhắn mới
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {isBlocked && (
-        <p role="status" className="border-t border-slate-200 bg-slate-100 px-4 py-2.5 text-center text-sm font-medium text-slate-900">
-          Cuộc trò chuyện này đã bị chặn.
-        </p>
+        <div role="status" className="border-t border-slate-200 bg-slate-100 px-4 py-2.5 text-center">
+          <p className="text-sm font-medium text-slate-900">Cuộc trò chuyện này đã bị chặn.</p>
+          <p className="mt-0.5 text-xs text-slate-600">
+            {selectedUser.isBlockedByMe
+              ? 'Bạn đã chặn người này. Bấm "Bỏ chặn" để nhắn tin lại.'
+              : 'Người này đã chặn bạn nên bạn không thể gửi tin nhắn.'}
+          </p>
+        </div>
       )}
 
       {!isConnected && !isBlocked && (
@@ -239,6 +293,13 @@ export default function ChatWindow({
           {connectionStatus === 'disconnected'
             ? 'Mất kết nối, đang thử kết nối lại...'
             : 'Đang kết nối...'}
+        </p>
+      )}
+
+      {uploading && (
+        <p role="status" className="flex items-center justify-center gap-2 border-t border-slate-200 bg-white px-4 py-2 text-sm text-slate-600">
+          <LoaderCircle className="h-4 w-4 animate-spin text-brand-primary" aria-hidden="true" />
+          {UPLOADING_MESSAGE}
         </p>
       )}
 
@@ -268,6 +329,7 @@ export default function ChatWindow({
         </button>
 
         <div className="min-w-0 flex-1">
+          {/* Chữ 16px trên mobile để iOS không tự phóng to trang khi chạm vào ô nhập. */}
           <textarea
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
@@ -277,7 +339,7 @@ export default function ChatWindow({
             disabled={isBlocked}
             aria-label="Nhập tin nhắn"
             placeholder={isBlocked ? 'Không thể nhắn tin khi cuộc trò chuyện bị chặn' : 'Nhập tin nhắn...'}
-            className="max-h-32 min-h-11 w-full resize-none rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-600 disabled:cursor-not-allowed disabled:opacity-60"
+            className="max-h-32 min-h-11 w-full resize-none rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-base text-slate-900 placeholder:text-slate-600 disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
           />
           {draft.length >= COUNTER_THRESHOLD && (
             <p className="mt-1 text-right font-mono text-xs text-slate-600">
@@ -289,10 +351,10 @@ export default function ChatWindow({
         <button
           type="submit"
           disabled={!canSend}
-          className="flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-xl bg-brand-primary px-4 text-sm font-semibold text-white transition-colors duration-200 hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-brand-primary px-3 text-sm font-semibold text-white transition-colors duration-200 hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50 sm:px-4"
         >
           <SendHorizontal className="h-4 w-4" aria-hidden="true" />
-          Gửi
+          <span className="sr-only sm:not-sr-only">Gửi</span>
         </button>
       </form>
     </section>

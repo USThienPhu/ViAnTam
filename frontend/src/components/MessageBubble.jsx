@@ -40,7 +40,8 @@ function VietQrCard({ qrData }) {
   );
 }
 
-function ImageAttachment({ imageUrl }) {
+// onSettled: gọi khi ảnh tải xong hoặc lỗi, vì lúc đó chiều cao bong bóng đổi và khung chat cần cuộn lại.
+function ImageAttachment({ imageUrl, onSettled }) {
   const [failed, setFailed] = useState(false);
   const src = resolveImageUrl(imageUrl);
 
@@ -54,12 +55,16 @@ function ImageAttachment({ imageUrl }) {
   }
 
   return (
-    <a href={src} target="_blank" rel="noopener noreferrer" aria-label="Mở ảnh trong tab mới">
+    <a href={src} target="_blank" rel="noopener noreferrer" aria-label="Mở ảnh trong tab mới" className="block">
       <img
         src={src}
         alt="Ảnh được gửi trong cuộc trò chuyện"
         loading="lazy"
-        onError={() => setFailed(true)}
+        onLoad={() => onSettled?.()}
+        onError={() => {
+          setFailed(true);
+          onSettled?.();
+        }}
         className="max-h-64 w-full max-w-xs rounded-xl object-contain"
       />
     </a>
@@ -67,7 +72,7 @@ function ImageAttachment({ imageUrl }) {
 }
 
 // Bong bóng tin nhắn. Tin của mình căn phải (nền hồng nhạt), của đối phương căn trái (nền xám nhạt).
-export default function MessageBubble({ message, isMine }) {
+export default function MessageBubble({ message, isMine, onMediaSettled }) {
   const isImage = message.type === 'image';
   const showQrCard = isImage && message.qrData?.isVietQR === true && message.qrData.accountNumber;
   const time = formatTime(message.createdAt);
@@ -83,7 +88,7 @@ export default function MessageBubble({ message, isMine }) {
             : 'rounded-bl-sm bg-slate-100 text-slate-900'
         }`}
       >
-        {isImage && <ImageAttachment imageUrl={message.imageUrl} />}
+        {isImage && <ImageAttachment imageUrl={message.imageUrl} onSettled={onMediaSettled} />}
         {showQrCard && <VietQrCard qrData={message.qrData} />}
         {/* Nội dung luôn hiển thị dạng văn bản thuần, không bao giờ render HTML hay tự biến thành link. */}
         {message.content && (
