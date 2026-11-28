@@ -99,7 +99,8 @@ async function analyzeConversation(input, options = {}) {
 
   let riskScore = Math.max(llmScore ?? 0, heuristic.score);
   const hitConfirmedBlacklist = [...(input.links || []), ...(input.qrTransfers || [])].some(
-    (s) => s.inBlacklist === true
+    // Chỉ tín hiệu của đối phương; thiếu sender coi là đối phương để giữ an toàn.
+    (s) => s.inBlacklist === true && s.sender !== 'user'
   );
   if (hitConfirmedBlacklist) riskScore = Math.max(riskScore, 85);
   const riskLevel = riskLevelFromScore(riskScore);

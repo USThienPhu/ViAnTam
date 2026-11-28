@@ -56,7 +56,8 @@ def to_analyze_request(inp: dict) -> dict:
 
 def hybrid_score(llm_score, heuristic_score: int, inp: dict) -> int:
     score = max(llm_score or 0, heuristic_score)
-    if any(s.get("inBlacklist") is True for s in inp.get("links", []) + inp.get("qrTransfers", [])):
+    signals = inp.get("links", []) + inp.get("qrTransfers", [])
+    if any(s.get("inBlacklist") is True and s.get("sender") != "user" for s in signals):
         score = max(score, 85)
     return score
 

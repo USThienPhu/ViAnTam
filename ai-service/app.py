@@ -21,6 +21,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 logger = logging.getLogger("ai-service")
 app = FastAPI(title="AegisAI AI Service")
 
+# Backend chờ tối đa 15s; quá 6s thì không thử lại nữa để tổng thời gian < 12s.
+RETRY_CUTOFF_S = 6.0
+_now = time.monotonic
 RETRY_SUFFIX = "\n\nChỉ trả về đúng một object JSON theo schema, không kèm giải thích."
 FENCE_RE = re.compile(r"```(?:json)?", re.IGNORECASE)
 
@@ -59,14 +62,18 @@ def analyze(req: AnalyzeRequest, x_api_key: Optional[str] = Header(default=None)
         raise HTTPException(status_code=401, detail="UNAUTHORIZED")
 
     request_id = uuid.uuid4().hex[:8]
-    started = time.monotonic()
+    started = _now()
+    deadline = started + RETRY_CUTOFF_S
     user_prompt = prompt_builder.build_user_prompt(req)
     texts = prompt_builder.conversation_texts(req)
 
     for attempt in (1, 2):
+        if attempt == 2 and _now() >= deadline:
+            logger.warning("rid=%s skip_retry over_budget", request_id)
+            break
         prompt = user_prompt if attempt == 1 else user_prompt + RETRY_SUFFIX
         try:
-            raw, model_id = model_loader.generate(prompt_builder.SYSTEM_PROMPT, prompt)
+            raw, model_id = model_loader.generate(prompt_builder.SYSTEM_PROMPT, prompt, deadline=deadline)
         except model_loader.LLMUnavailable as err:
             logger.warning("rid=%s llm_unavailable error=%s", request_id, err)
             raise HTTPException(status_code=502, detail="LLM_UNAVAILABLE")
@@ -81,7 +88,7 @@ def analyze(req: AnalyzeRequest, x_api_key: Optional[str] = Header(default=None)
             model_id,
             len(req.messages),
             len(prompt),
-            int((time.monotonic() - started) * 1000),
+            int((_now() - started) * 1000),
         )
         return result
 

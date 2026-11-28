@@ -35,7 +35,7 @@ def client(monkeypatch):
 def fake_generate(monkeypatch, replies):
     prompts = []
 
-    def fake(system_prompt, user_prompt):
+    def fake(system_prompt, user_prompt, deadline=None):
         prompts.append(user_prompt)
         reply = replies[len(prompts) - 1]
         if isinstance(reply, Exception):
@@ -103,3 +103,19 @@ def test_log_khong_chua_noi_dung_tin_nhan(client, monkeypatch, caplog):
     assert caplog.records, "phải có log vận hành"
     assert "123456789" not in caplog.text
     assert "chuyển 500.000đ" not in caplog.text
+
+
+def test_khong_retry_json_khi_da_qua_ngan_sach_thoi_gian(client, monkeypatch):
+    clock = {"t": 0.0}
+    monkeypatch.setattr(app_module, "_now", lambda: clock["t"])
+    prompts = []
+
+    def slow_bad(system_prompt, user_prompt, deadline=None):
+        prompts.append(user_prompt)
+        clock["t"] += 7.0
+        return "không phải json", "model-main"
+
+    monkeypatch.setattr(model_loader, "generate", slow_bad)
+    res = client.post("/analyze", json=BODY, headers={"X-API-Key": "secret"})
+    assert res.status_code == 502
+    assert len(prompts) == 1

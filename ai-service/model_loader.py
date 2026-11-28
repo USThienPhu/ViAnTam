@@ -1,5 +1,6 @@
 """Gọi Amazon Bedrock qua boto3 converse (docs/aws-llm-service-spec.md mục 3)."""
 import os
+import time
 
 import boto3
 from botocore.config import Config
@@ -11,6 +12,7 @@ class LLMUnavailable(Exception):
 
 
 _client = None
+_now = time.monotonic
 
 
 def _get_client():
@@ -19,7 +21,7 @@ def _get_client():
         _client = boto3.client(
             "bedrock-runtime",
             region_name=os.getenv("AWS_REGION", "us-east-1"),
-            config=Config(read_timeout=10, connect_timeout=3, retries={"max_attempts": 1}),
+            config=Config(read_timeout=10, connect_timeout=3, retries={"mode": "standard", "max_attempts": 1}),
         )
     return _client
 
@@ -34,12 +36,15 @@ def _converse(model_id: str, system_prompt: str, user_prompt: str) -> str:
     return response["output"]["message"]["content"][0]["text"]
 
 
-def generate(system_prompt: str, user_prompt: str) -> tuple[str, str]:
+def generate(system_prompt: str, user_prompt: str, deadline: float | None = None) -> tuple[str, str]:
+    """deadline (theo _now): quá hạn thì không thử model dự phòng nữa."""
     models = [m for m in (os.getenv("BEDROCK_MODEL_ID", ""), os.getenv("BEDROCK_FALLBACK_MODEL_ID", "")) if m]
     if not models:
         raise LLMUnavailable("BEDROCK_MODEL_ID chưa được cấu hình")
     last_error = None
-    for model_id in models:
+    for index, model_id in enumerate(models):
+        if index > 0 and deadline is not None and _now() >= deadline:
+            break
         try:
             return _converse(model_id, system_prompt, user_prompt), model_id
         except (BotoCoreError, ClientError, KeyError, IndexError) as err:
