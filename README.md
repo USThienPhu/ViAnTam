@@ -1,8 +1,8 @@
-# AIthena: Web nhắn tin tích hợp AI phát hiện lừa đảo
+# AegisAI: Web nhắn tin tích hợp AI phát hiện lừa đảo
 
 ## 1. Giới thiệu
 
-AIthena là một nền tảng web nhắn tin demo tích hợp AI phòng chống lừa đảo trực tuyến (dự án tham gia **MoMo TechDays**). Phần nhắn tin được giữ ở mức gọn nhẹ để tập trung vào trọng tâm của dự án: **xây dựng mô hình AI (Custom LLM) nhận diện lừa đảo** và các công cụ bảo vệ người dùng đi kèm (giải mã VietQR đa ngân hàng, phân tích link, hỏi làm rõ, cảnh báo, chặn và báo cáo tài khoản).
+AegisAI là một nền tảng web nhắn tin demo tích hợp AI phòng chống lừa đảo trực tuyến (dự án tham gia **MoMo TechDays**). Phần nhắn tin được giữ ở mức gọn nhẹ để tập trung vào trọng tâm của dự án: **xây dựng mô hình AI (Custom LLM) nhận diện lừa đảo** và các công cụ bảo vệ người dùng đi kèm (giải mã VietQR đa ngân hàng, phân tích link, hỏi làm rõ, cảnh báo, chặn và báo cáo tài khoản).
 
 Khi nghi ngờ một cuộc trò chuyện, người dùng chủ động bấm **"Kiểm tra lừa đảo"**. Hệ thống chỉ đọc tin nhắn tại thời điểm người dùng yêu cầu, tiền xử lý các tín hiệu kỹ thuật (Link, mã VietQR, Blacklist) và gửi sang mô hình LLM để trả về mức độ rủi ro, dấu hiệu đáng ngờ và lời khuyên hành động. Kết quả chỉ mang tính tham khảo, không khẳng định chắc chắn một người là kẻ lừa đảo.
 

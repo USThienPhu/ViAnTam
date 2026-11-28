@@ -1,9 +1,9 @@
-﻿@import '@fontsource-variable/plus-jakarta-sans';
+@import '@fontsource-variable/plus-jakarta-sans';
 @import '@fontsource-variable/jetbrains-mono';
 @import 'tailwindcss';
 
 /*
- * Design tokens của AIthena (nguồn: docs/theme.md).
+ * Design tokens của AegisAI (nguồn: docs/theme.md).
  * Component chỉ dùng class sinh từ các token này, không viết mã hex trực tiếp.
  */
 @theme {

@@ -21,7 +21,7 @@ Tài liệu này mô tả chi tiết cấu trúc **Frontend (React + Vite + Tail
 
 ### 3.1. `Navbar.jsx` (Dùng chung cho các trang đã đăng nhập)
 - Chiều cao cố định `h-14`, nền `bg-white border-b border-slate-200`.
-- Trái: Logo **AIthena** (màu `#D82D8B`) + icon khiên bảo vệ.
+- Trái: Logo **AegisAI** (màu `#D82D8B`) + icon khiên bảo vệ.
 - Giữa: 3–4 link điều hướng (**Tin nhắn**, **Lịch sử**, **Mẹo an toàn**, và **Quản trị** chỉ hiện khi `user.role === 'admin'`).
 - Phải: Tên `user.username` + nút **Đăng xuất**.
 

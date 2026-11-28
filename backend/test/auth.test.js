@@ -19,7 +19,7 @@ let mongod;
 
 before(async () => {
   mongod = await MongoMemoryServer.create();
-  await mongoose.connect(mongod.getUri(), { dbName: 'aithena_test' });
+  await mongoose.connect(mongod.getUri(), { dbName: 'aegisai_test' });
   await User.init(); // đảm bảo index unique đã được tạo trước khi test
 });
 

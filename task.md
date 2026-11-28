@@ -1,4 +1,4 @@
-# Phân chia công việc chi tiết — AIthena (4 Ngày - Nhóm 3 người)
+# Phân chia công việc chi tiết — AegisAI (4 Ngày - Nhóm 3 người)
 
 Tài liệu được kiểm tra và tối ưu theo 3 tiêu chí: **đầy đủ 100% đầu việc để web chạy trơn tru**, **hạn chế tối đa xung đột Git (merge conflict)**, và **rõ ràng kết quả đầu ra (Done Criteria)** cho từng thành viên.
 

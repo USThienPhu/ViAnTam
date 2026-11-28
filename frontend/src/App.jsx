@@ -1,4 +1,4 @@
-﻿import { ShieldCheck, ShieldAlert, ShieldX, Sparkles } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, ShieldX, Sparkles } from 'lucide-react';
 
 // TẠM THỜI (W2-1.1): trang xem trước theme để kiểm tra token trong index.css.
 // W2-1.2 sẽ thay file này bằng React Router + ProtectedRoute + AdminRoute.
@@ -38,12 +38,12 @@ export default function App() {
     <div className="min-h-screen bg-slate-50">
       <header className="flex h-14 items-center border-b border-slate-200 bg-white px-4">
         <ShieldCheck className="mr-2 h-6 w-6 text-brand-primary" aria-hidden="true" />
-        <span className="text-base font-bold text-brand-primary">AIthena</span>
+        <span className="text-base font-bold text-brand-primary">AegisAI</span>
       </header>
 
       <main className="mx-auto max-w-3xl space-y-8 px-4 py-8">
         <section>
-          <h1 className="text-xl font-bold text-slate-900">Xem trước theme AIthena</h1>
+          <h1 className="text-xl font-bold text-slate-900">Xem trước theme AegisAI</h1>
           <p className="mt-1 text-sm leading-relaxed text-slate-600">
             Trang tạm thời để kiểm tra màu sắc và font chữ theo docs/theme.md.
           </p>

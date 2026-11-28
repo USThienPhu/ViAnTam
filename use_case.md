@@ -1,6 +1,6 @@
-# Danh sách Use Case — AIthena
+# Danh sách Use Case — AegisAI
 
-Tài liệu mô tả toàn bộ các Use Case của hệ thống **AIthena** phục vụ thiết kế và kiểm thử.
+Tài liệu mô tả toàn bộ các Use Case của hệ thống **AegisAI** phục vụ thiết kế và kiểm thử.
 
 ## 1. Các tác nhân (Actors)
 - **Người dùng (User):** Người sử dụng ứng dụng chat và công cụ AI kiểm tra lừa đảo.
@@ -18,7 +18,7 @@ flowchart LR
     Admin(["Quản trị viên (Admin)"])
     AI(["AWS Custom LLM"])
 
-    subgraph ScamGuard["Hệ thống AIthena"]
+    subgraph AegisAI["Hệ thống AegisAI"]
         UC01["UC-01: Đăng ký / Đăng nhập"]
         UC02["UC-02: Chat 1-1 & Gửi ảnh QR"]
         UC03["UC-03: Kiểm tra lừa đảo (On-demand)"]
