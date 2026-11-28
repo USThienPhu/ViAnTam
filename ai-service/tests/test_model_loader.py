@@ -43,3 +43,29 @@ def test_chua_cau_hinh_model_thi_nem_llm_unavailable(monkeypatch):
     monkeypatch.delenv("BEDROCK_FALLBACK_MODEL_ID", raising=False)
     with pytest.raises(model_loader.LLMUnavailable):
         model_loader.generate("sys", "user")
+
+
+def test_client_chi_goi_mot_lan_khong_tu_retry(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(model_loader, "_client", None)
+    monkeypatch.setattr(model_loader.boto3, "client", lambda *a, **k: captured.update(k) or object())
+    model_loader._get_client()
+    assert captured["config"].retries == {"mode": "standard", "max_attempts": 1}
+
+
+def test_bo_qua_model_du_phong_khi_da_qua_han(monkeypatch):
+    monkeypatch.setenv("BEDROCK_MODEL_ID", "main")
+    monkeypatch.setenv("BEDROCK_FALLBACK_MODEL_ID", "backup")
+    clock = {"t": 0.0}
+    calls = []
+    monkeypatch.setattr(model_loader, "_now", lambda: clock["t"])
+
+    def slow_fail(model_id, _s, _u):
+        calls.append(model_id)
+        clock["t"] += 7.0
+        throttle()
+
+    monkeypatch.setattr(model_loader, "_converse", slow_fail)
+    with pytest.raises(model_loader.LLMUnavailable):
+        model_loader.generate("sys", "user", deadline=6.0)
+    assert calls == ["main"]
