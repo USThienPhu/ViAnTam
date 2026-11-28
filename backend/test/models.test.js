@@ -1,6 +1,9 @@
 const { test, describe, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 
+process.env.MONGODB_URI = 'mongodb://127.0.0.1:1/khong-dung-trong-test';
+process.env.JWT_SECRET = 'test-secret-chi-dung-cho-test';
+
 const mongoose = require('mongoose');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 
@@ -10,6 +13,7 @@ const Report = require('../src/models/Report');
 const Block = require('../src/models/Block');
 const Blacklist = require('../src/models/Blacklist');
 const ScamCheck = require('../src/models/ScamCheck');
+const { makeConversationId } = require('../src/utils/conversation');
 
 let mongod;
 
@@ -42,6 +46,48 @@ beforeEach(async () => {
   ]);
 });
 
+describe('makeConversationId', () => {
+  test('giống nhau với cả hai chiều', () => {
+    assert.equal(makeConversationId('b', 'a'), makeConversationId('a', 'b'));
+    assert.equal(makeConversationId('b', 'a'), 'a_b');
+  });
+});
+
+describe('Message', () => {
+  test('lưu và đọc lại tin nhắn với giá trị mặc định', async () => {
+    const a = new mongoose.Types.ObjectId();
+    const b = new mongoose.Types.ObjectId();
+    const saved = await Message.create({
+      conversationId: makeConversationId(a, b),
+      senderId: a,
+      receiverId: b,
+      content: 'xin chào',
+    });
+    const found = await Message.findById(saved._id).lean();
+    assert.equal(found.type, 'text');
+    assert.equal(found.imageUrl, '');
+    assert.deepEqual(found.extractedLinks, []);
+    assert.equal(found.content, 'xin chào');
+  });
+
+  test('từ chối type ngoài text/image', async () => {
+    const a = new mongoose.Types.ObjectId();
+    await assert.rejects(
+      Message.create({ conversationId: 'x', senderId: a, receiverId: a, type: 'video' })
+    );
+  });
+});
+
+describe('Block', () => {
+  test('unique theo (blockerId, blockedId) và cho phép chiều ngược lại', async () => {
+    const a = new mongoose.Types.ObjectId();
+    const b = new mongoose.Types.ObjectId();
+    await Block.create({ blockerId: a, blockedId: b });
+    await assert.rejects(Block.create({ blockerId: a, blockedId: b }), { code: 11000 });
+    await Block.create({ blockerId: b, blockedId: a });
+  });
+});
+
 describe('Mongoose models & indexes (W3-1.1)', () => {
   test('đăng ký đúng tên collection trong MongoDB', () => {
     assert.equal(User.collection.collectionName, 'users');
@@ -55,7 +101,7 @@ describe('Mongoose models & indexes (W3-1.1)', () => {
   test('tạo Message với dữ liệu text và VietQR đầy đủ giá trị mặc định', async () => {
     const senderId = new mongoose.Types.ObjectId();
     const receiverId = new mongoose.Types.ObjectId();
-    const conversationId = [String(senderId), String(receiverId)].sort().join('_');
+    const conversationId = makeConversationId(senderId, receiverId);
 
     const textMsg = await Message.create({
       conversationId,
@@ -90,17 +136,6 @@ describe('Mongoose models & indexes (W3-1.1)', () => {
     assert.equal(qrMsg.type, 'image');
     assert.equal(qrMsg.qrData.bankName, 'BIDV');
     assert.equal(qrMsg.qrData.amount, 500000);
-  });
-
-  test('Block chặn tạo trùng cặp blockerId + blockedId bằng unique index', async () => {
-    const blockerId = new mongoose.Types.ObjectId();
-    const blockedId = new mongoose.Types.ObjectId();
-
-    await Block.create({ blockerId, blockedId });
-    await assert.rejects(
-      () => Block.create({ blockerId, blockedId }),
-      (err) => err.code === 11000
-    );
   });
 
   test('Blacklist chặn trùng type + value và kiểm tra enum type', async () => {
@@ -175,7 +210,7 @@ describe('Mongoose models & indexes (W3-1.1)', () => {
     const check = await ScamCheck.create({
       requesterId,
       targetUserId,
-      conversationId: [String(requesterId), String(targetUserId)].sort().join('_'),
+      conversationId: makeConversationId(requesterId, targetUserId),
       initialScore: 52,
       finalScore: 52,
       riskLevel: 'medium',

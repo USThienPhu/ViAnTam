@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const messageSchema = new mongoose.Schema(
   {
-    conversationId: { type: String, required: true, index: true },
+    conversationId: { type: String, required: true, index: true }, // [senderId, receiverId].sort().join('_')
     senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     receiverId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     type: { type: String, enum: ['text', 'image'], default: 'text' },
