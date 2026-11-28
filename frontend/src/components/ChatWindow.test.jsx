@@ -3,6 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ChatWindow from './ChatWindow';
+import { ToastProvider } from '../context/ToastContext';
+import failOnConsole from '../test/failOnConsole';
+
+failOnConsole();
 
 vi.mock('../api/chatApi', async () => {
   const actual = await vi.importActual('../api/chatApi');
@@ -32,7 +36,8 @@ function renderWindow(props = {}) {
       connectionStatus="connected"
       sendMessage={sendMessage}
       {...props}
-    />
+    />,
+    { wrapper: ToastProvider }
   );
   return { ...utils, sendMessage };
 }
@@ -173,12 +178,15 @@ describe('ChatWindow: gửi tin text', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Chưa kết nối tới máy chủ.');
   });
 
-  it('lỗi từ server (message_error) hiện ra và đóng được', async () => {
-    const onDismissError = vi.fn();
-    renderWindow({ errorMessage: 'Không thể gửi tin nhắn vì cuộc trò chuyện đã bị chặn.', onDismissError });
-    expect(screen.getByRole('alert')).toHaveTextContent('đã bị chặn');
-    await userEvent.click(screen.getByRole('button', { name: 'Đóng thông báo lỗi' }));
-    expect(onDismissError).toHaveBeenCalledTimes(1);
+  it('lỗi hiện dạng toast và đóng được bằng nút Đóng thông báo', async () => {
+    renderWindow({ sendMessage: vi.fn(() => false) });
+    await userEvent.type(input(), 'chào');
+    await userEvent.click(sendButton());
+    expect(screen.getByRole('alert')).toHaveTextContent('Chưa kết nối tới máy chủ.');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Đóng thông báo' }));
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });
 
@@ -195,11 +203,12 @@ describe('ChatWindow: kết nối và chặn', () => {
   });
 
   it.each([
-    ['mình chặn họ', { isBlockedByMe: true }],
-    ['họ chặn mình', { hasBlockedMe: true }],
-  ])('%s: khóa ô nhập, nút gửi, nút gửi ảnh và hiện thanh thông báo', (_name, flags) => {
+    ['mình chặn họ', { isBlockedByMe: true }, 'Bạn đã chặn người này.'],
+    ['họ chặn mình', { hasBlockedMe: true }, 'Người này đã chặn bạn'],
+  ])('%s: khóa ô nhập, nút gửi, nút gửi ảnh và hiện thanh thông báo kèm gợi ý đúng chiều chặn', (_name, flags, hint) => {
     renderWindow({ selectedUser: { ...PEER, ...flags } });
     expect(screen.getByText('Cuộc trò chuyện này đã bị chặn.')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(hint);
     expect(input()).toBeDisabled();
     expect(sendButton()).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Gửi ảnh' })).toBeDisabled();
@@ -226,7 +235,7 @@ describe('ChatWindow: kết nối và chặn', () => {
         />
       );
     }
-    render(<Harness />);
+    render(<Harness />, { wrapper: ToastProvider });
 
     await userEvent.click(screen.getByRole('button', { name: /^Chặn$/ }));
 
@@ -269,8 +278,10 @@ describe('ChatWindow: gửi ảnh', () => {
     choose(pngFile());
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Gửi ảnh' })).toBeDisabled());
+    expect(screen.getByRole('status')).toHaveTextContent('Đang tải ảnh lên & giải mã QR...');
     resolveUpload({ imageUrl: '/uploads/1-a.png', qrData: { isVietQR: false }, extractedLinks: [] });
     await waitFor(() => expect(screen.getByRole('button', { name: 'Gửi ảnh' })).toBeEnabled());
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('từ chối file sai định dạng ngay trên trình duyệt, không gọi upload', () => {
@@ -346,5 +357,140 @@ describe('ChatWindow: gửi ảnh', () => {
     expect(within(log).getByText('Vietcombank')).toBeInTheDocument();
     expect(within(log).getByText('1122334455')).toBeInTheDocument();
     expect(within(log).getByText('100.000đ')).toBeInTheDocument();
+  });
+});
+
+describe('ChatWindow: tự cuộn', () => {
+  // jsdom không có layout, nên giả lập số đo cuộn của khung tin nhắn.
+  const SCROLL_HEIGHT = 1000;
+  const CLIENT_HEIGHT = 400;
+
+  function mockScroll(list) {
+    let top = 0;
+    Object.defineProperty(list, 'scrollHeight', { configurable: true, get: () => SCROLL_HEIGHT });
+    Object.defineProperty(list, 'clientHeight', { configurable: true, get: () => CLIENT_HEIGHT });
+    Object.defineProperty(list, 'scrollTop', {
+      configurable: true,
+      get: () => top,
+      set: (value) => {
+        top = value;
+      },
+    });
+    return {
+      get top() {
+        return top;
+      },
+      scrollTo(value) {
+        top = value;
+        fireEvent.scroll(list);
+      },
+    };
+  }
+
+  const windowFor = (messages) => (
+    <ChatWindow selectedUser={PEER} currentUserId={ME} messages={messages} connectionStatus="connected" sendMessage={vi.fn()} />
+  );
+  const log = () => screen.getByRole('log', { name: 'Tin nhắn' });
+
+  function setupScroll(initial = [textMessage('m1', 'u2', 'tin 1')]) {
+    const utils = render(windowFor(initial), { wrapper: ToastProvider });
+    const scroll = mockScroll(log());
+    return { ...utils, scroll };
+  }
+
+  it('đang ở gần đáy: tin mới của đối phương kéo khung xuống đáy, không hiện nút', () => {
+    const { rerender, scroll } = setupScroll();
+    scroll.scrollTo(SCROLL_HEIGHT - CLIENT_HEIGHT - 40);
+
+    rerender(windowFor([textMessage('m1', 'u2', 'tin 1'), textMessage('m2', 'u2', 'tin 2', 2)]));
+
+    expect(scroll.top).toBe(SCROLL_HEIGHT);
+    expect(screen.queryByRole('button', { name: 'Tin nhắn mới' })).not.toBeInTheDocument();
+  });
+
+  it('đang đọc tin cũ: tin mới của đối phương không kéo xuống, hiện nút Tin nhắn mới', () => {
+    const { rerender, scroll } = setupScroll();
+    scroll.scrollTo(100);
+
+    rerender(windowFor([textMessage('m1', 'u2', 'tin 1'), textMessage('m2', 'u2', 'tin 2', 2)]));
+
+    expect(scroll.top).toBe(100);
+    expect(screen.getByRole('button', { name: 'Tin nhắn mới' })).toBeInTheDocument();
+  });
+
+  it('bấm Tin nhắn mới thì cuộn xuống đáy và ẩn nút', async () => {
+    const { rerender, scroll } = setupScroll();
+    scroll.scrollTo(100);
+    rerender(windowFor([textMessage('m1', 'u2', 'tin 1'), textMessage('m2', 'u2', 'tin 2', 2)]));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Tin nhắn mới' }));
+
+    expect(scroll.top).toBe(SCROLL_HEIGHT);
+    expect(screen.queryByRole('button', { name: 'Tin nhắn mới' })).not.toBeInTheDocument();
+  });
+
+  it('tự cuộn xuống đáy bằng tay thì nút Tin nhắn mới biến mất', () => {
+    const { rerender, scroll } = setupScroll();
+    scroll.scrollTo(100);
+    rerender(windowFor([textMessage('m1', 'u2', 'tin 1'), textMessage('m2', 'u2', 'tin 2', 2)]));
+    expect(screen.getByRole('button', { name: 'Tin nhắn mới' })).toBeInTheDocument();
+
+    scroll.scrollTo(SCROLL_HEIGHT - CLIENT_HEIGHT - 10);
+
+    expect(screen.queryByRole('button', { name: 'Tin nhắn mới' })).not.toBeInTheDocument();
+  });
+
+  it('tin do chính mình gửi luôn kéo xuống đáy dù đang đọc tin cũ', () => {
+    const { rerender, scroll } = setupScroll();
+    scroll.scrollTo(100);
+
+    rerender(windowFor([textMessage('m1', 'u2', 'tin 1'), textMessage('m2', ME, 'mình gửi', 2)]));
+
+    expect(scroll.top).toBe(SCROLL_HEIGHT);
+    expect(screen.queryByRole('button', { name: 'Tin nhắn mới' })).not.toBeInTheDocument();
+  });
+
+  it('lịch sử tải xong thì cuộn xuống tin mới nhất', () => {
+    const { rerender, scroll } = setupScroll([]);
+
+    rerender(windowFor([textMessage('m1', 'u2', 'tin 1'), textMessage('m2', 'u2', 'tin 2', 2)]));
+
+    expect(scroll.top).toBe(SCROLL_HEIGHT);
+  });
+
+  describe('ảnh tải xong làm bong bóng cao lên', () => {
+    const imageMessage = {
+      _id: 'img1',
+      senderId: 'u2',
+      receiverId: ME,
+      type: 'image',
+      imageUrl: '/uploads/1-abc.png',
+      qrData: { isVietQR: false },
+      createdAt: '2026-11-28T07:03:00.000Z',
+    };
+
+    it('đang ở đáy thì cuộn lại xuống đáy', () => {
+      const { scroll } = setupScroll([imageMessage]);
+      scroll.scrollTo(SCROLL_HEIGHT - CLIENT_HEIGHT);
+
+      fireEvent.load(screen.getByAltText('Ảnh được gửi trong cuộc trò chuyện'));
+
+      expect(scroll.top).toBe(SCROLL_HEIGHT);
+    });
+
+    it('đang đọc tin cũ thì giữ nguyên vị trí cuộn', () => {
+      const { scroll } = setupScroll([imageMessage]);
+      scroll.scrollTo(100);
+
+      fireEvent.load(screen.getByAltText('Ảnh được gửi trong cuộc trò chuyện'));
+
+      expect(scroll.top).toBe(100);
+    });
+
+    it('ảnh lỗi thì hiện thông báo không tải được ảnh và không gây lỗi', () => {
+      setupScroll([imageMessage]);
+      fireEvent.error(screen.getByAltText('Ảnh được gửi trong cuộc trò chuyện'));
+      expect(screen.getByText('Không tải được ảnh.')).toBeInTheDocument();
+    });
   });
 });

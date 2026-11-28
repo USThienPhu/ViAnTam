@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ChatPage from './ChatPage';
+import { ToastProvider } from '../context/ToastContext';
 import { mockApi } from '../test/mockApi';
+import failOnConsole from '../test/failOnConsole';
+
+failOnConsole();
 
 const socketMock = vi.hoisted(() => ({
   handlers: null,
@@ -54,7 +58,7 @@ function setup(routes = {}) {
     'GET /messages/u4': () => ({ data: [] }),
     ...routes,
   });
-  render(<ChatPage />);
+  render(<ChatPage />, { wrapper: ToastProvider });
   return calls;
 }
 
@@ -74,6 +78,13 @@ describe('ChatPage: danh sách người dùng', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Đang tải danh sách...');
     expect(await screen.findByRole('button', { name: /ChuTro_AnhMinh/ })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Chọn một cuộc trò chuyện để bắt đầu' })).toBeInTheDocument();
+  });
+
+  it('empty state có minh họa kèm dòng hướng dẫn', async () => {
+    setup();
+    await screen.findByRole('button', { name: /ChuTro_AnhMinh/ });
+    expect(screen.getByRole('img', { name: 'Minh họa cuộc trò chuyện được bảo vệ' })).toBeInTheDocument();
+    expect(screen.getByText(/Chọn một người dùng ở danh sách bên trái/)).toBeInTheDocument();
   });
 
   it('hiện badge Cảnh báo và Đã chặn đúng người', async () => {
@@ -266,14 +277,49 @@ describe('ChatPage: tin nhắn realtime', () => {
     expect(socketMock.sendMessage).toHaveBeenCalledWith({ receiverId: 'u2', type: 'text', content: 'Xin chào' });
   });
 
-  it('server báo message_error thì hiện lỗi, đổi cuộc trò chuyện thì lỗi biến mất', async () => {
+  it('server báo message_error thì hiện toast lỗi và đóng được', async () => {
     await openAnhMinh();
-    act(() => socketMock.handlers.onError({ message: 'Không thể gửi tin nhắn vì cuộc trò chuyện đã bị chặn.', code: 'CONVERSATION_BLOCKED' }));
+    act(() => socketMock.handlers.onError({ message: 'Tin nhắn không được để trống.', code: 'EMPTY_MESSAGE' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Tin nhắn không được để trống.');
+    expect(input()).toBeEnabled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Đóng thông báo' }));
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('message_error không có nội dung thì dùng thông báo mặc định tiếng Việt', async () => {
+    await openAnhMinh();
+    act(() => socketMock.handlers.onError({}));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Không thể gửi tin nhắn. Vui lòng thử lại.');
+  });
+
+  it('đối phương chặn mình khi đang chat (CONVERSATION_BLOCKED): khóa ô nhập ngay, hiện thanh chặn và toast', async () => {
+    await openAnhMinh();
+    expect(input()).toBeEnabled();
+
+    act(() =>
+      socketMock.handlers.onError({
+        message: 'Không thể gửi tin nhắn vì cuộc trò chuyện đã bị chặn.',
+        code: 'CONVERSATION_BLOCKED',
+      })
+    );
+
     expect(await screen.findByRole('alert')).toHaveTextContent('đã bị chặn');
+    expect(input()).toBeDisabled();
+    expect(screen.getByText('Cuộc trò chuyện này đã bị chặn.')).toBeInTheDocument();
+    expect(screen.getByText('Người này đã chặn bạn nên bạn không thể gửi tin nhắn.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Gửi ảnh' })).toBeDisabled();
+  });
+
+  it('CONVERSATION_BLOCKED chỉ khóa người đang mở, người khác vẫn nhắn được', async () => {
+    await openAnhMinh();
+    act(() => socketMock.handlers.onError({ message: 'Đã bị chặn.', code: 'CONVERSATION_BLOCKED' }));
+    expect(input()).toBeDisabled();
 
     await openChat('HoTro_MoMo_247');
 
-    await waitFor(() => expect(screen.queryByText(/đã bị chặn/)).not.toBeInTheDocument());
+    expect(input()).toBeEnabled();
   });
 
   it('socket mất kết nối thì khóa nút gửi và báo trên khung chat', async () => {

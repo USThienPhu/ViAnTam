@@ -112,7 +112,7 @@ export default function UserSidebar({ users, loading, error, onRetry, selectedId
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Tìm người dùng..."
-            className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-100 pr-3 pl-9 text-sm text-slate-900 placeholder:text-slate-600"
+            className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-100 pr-3 pl-9 text-base text-slate-900 placeholder:text-slate-600 sm:text-sm"
           />
         </label>
       </div>

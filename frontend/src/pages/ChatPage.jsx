@@ -1,9 +1,10 @@
-﻿import { useEffect, useRef, useState } from 'react';
-import { MessagesSquare } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { getMessages, getUsers } from '../api/chatApi';
 import getErrorMessage from '../api/getErrorMessage';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import useChatSocket from '../hooks/useChatSocket';
+import ChatEmptyIllustration from '../components/ChatEmptyIllustration';
 import ChatWindow from '../components/ChatWindow';
 import UserSidebar from '../components/UserSidebar';
 import { getPeerId, mergeMessages } from '../utils/chatFormat';
@@ -12,6 +13,7 @@ import { getPeerId, mergeMessages } from '../utils/chatFormat';
 // Socket chỉ kết nối khi trang này đang mở (useChatSocket), các trang khác không cần realtime.
 export default function ChatPage() {
   const { user: me } = useAuth();
+  const { showToast } = useToast();
 
   const [users, setUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(true);
@@ -25,7 +27,6 @@ export default function ChatPage() {
   const [historyReload, setHistoryReload] = useState(0);
 
   const [unreadIds, setUnreadIds] = useState(() => new Set());
-  const [chatError, setChatError] = useState('');
 
   // Callback của socket luôn đọc đúng cuộc trò chuyện đang mở mà không phải đăng ký lại listener.
   const selectedIdRef = useRef(selectedId);
@@ -41,7 +42,16 @@ export default function ChatPage() {
         setUnreadIds((prev) => new Set(prev).add(peerId));
       }
     },
-    onError: (error) => setChatError(error?.message || 'Không thể gửi tin nhắn. Vui lòng thử lại.'),
+    onError: (error) => {
+      showToast(error?.message || 'Không thể gửi tin nhắn. Vui lòng thử lại.');
+      // Đối phương vừa chặn mình khi đang chat: khóa ô nhập ngay thay vì chờ tải lại danh sách.
+      if (error?.code === 'CONVERSATION_BLOCKED') {
+        const peerId = selectedIdRef.current;
+        setUsers((prev) =>
+          prev.map((user) => (user.id === peerId && !user.isBlockedByMe ? { ...user, hasBlockedMe: true } : user))
+        );
+      }
+    },
   });
 
   useEffect(() => {
@@ -94,7 +104,6 @@ export default function ChatPage() {
 
   function handleSelect(id) {
     setSelectedId(id);
-    setChatError('');
     setUnreadIds((prev) => {
       if (!prev.has(id)) return prev;
       const next = new Set(prev);
@@ -108,7 +117,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] min-h-0 bg-white">
+    <div className="flex h-[calc(100vh-3.5rem)] min-h-0 bg-white supports-[height:100dvh]:h-[calc(100dvh-3.5rem)]">
       <aside
         aria-label="Danh sách người dùng"
         className={`${selectedUser ? 'hidden md:flex' : 'flex'} w-full flex-col border-r border-slate-200 md:w-80 md:shrink-0`}
@@ -136,17 +145,18 @@ export default function ChatPage() {
             onRetry={() => setHistoryReload((n) => n + 1)}
             connectionStatus={status}
             sendMessage={sendMessage}
-            errorMessage={chatError}
-            onDismissError={() => setChatError('')}
             onBlockChange={handleBlockChange}
             onBack={() => setSelectedId(null)}
           />
         ) : (
           <div className="flex flex-1 flex-col items-center justify-center bg-slate-50 px-4 text-center">
-            <MessagesSquare className="h-12 w-12 text-slate-600" aria-hidden="true" />
+            <ChatEmptyIllustration className="h-36 w-auto max-w-full" />
             <h1 className="mt-4 text-base font-semibold text-slate-900">
               Chọn một cuộc trò chuyện để bắt đầu
             </h1>
+            <p className="mt-1 max-w-xs text-sm leading-relaxed text-slate-600">
+              Chọn một người dùng ở danh sách bên trái để nhắn tin. Bạn có thể kiểm tra lừa đảo ngay trong cuộc trò chuyện.
+            </p>
           </div>
         )}
       </div>

@@ -159,3 +159,26 @@ Nếu TV3 muốn nhận dữ liệu live, hãy bỏ `targetUser?.isBlockedByMe` 
 - **`hasBlockedMe` không cập nhật theo thời gian thực.** Nếu đối phương chặn mình khi đang chat, ô nhập vẫn mở cho đến khi gửi tin, lúc đó server trả `message_error` (`CONVERSATION_BLOCKED`) và `ChatWindow` hiện thông báo lỗi. Tải lại danh sách người dùng thì ô nhập mới bị khóa.
 - **Chấm "tin mới" ở Sidebar chỉ tồn tại trong phiên đang mở trang chat.** Rời `ChatPage` hoặc tải lại trang thì mất (server không lưu trạng thái đã đọc).
 - **Triển khai thật (Vercel + EC2):** cần backend có HTTPS. Trang HTTPS không gọi được API/Socket.IO/ảnh qua `http://`. Đặt `VITE_API_URL`, `VITE_SOCKET_URL` thành `https://...` và `CLIENT_URL` ở backend đúng địa chỉ Vercel.
+
+---
+
+## 10. Hoàn thiện UX Chat (TV2, task W2-3.1): thay đổi và việc cần TV3 xử lý
+
+Plan chi tiết: `docs/plan-tv2-day3-frontend.md`. Đã kiểm tra bằng Chrome thật ở 360px, 768px và 1280px (giả lập API và Socket.IO, không dùng database thật): 81 kiểm tra đạt, không có lỗi hay cảnh báo console.
+
+### 10.1. Toast dùng chung (mới)
+- `frontend/src/context/ToastContext.jsx` cung cấp `ToastProvider` và `useToast()`; provider đã gắn sẵn trong `AppLayout` (`App.jsx`) nên mọi trang sau đăng nhập dùng được.
+- Cách dùng: `const { showToast, dismissToast } = useToast(); showToast('Nội dung tiếng Việt', { type: 'error' | 'success' | 'info', duration, id })`.
+  - Lỗi tự tắt sau 6 giây, thông báo khác sau 4 giây, `duration: 0` là giữ lại; cùng `id` thì thay thế toast cũ; tối đa 3 toast.
+  - Toast nằm **giữa phía trên**, dưới Navbar (`top-16`, `z-[60]`, cao hơn modal `z-50`).
+- `ChatWindow` không còn prop `errorMessage` và `onDismissError`. Lỗi `message_error` của socket và lỗi upload hiện qua toast.
+- Test dùng toast phải bọc `<ToastProvider>` (ví dụ `render(ui, { wrapper: ToastProvider })`). Test của TV2 còn dùng `src/test/failOnConsole.js` để fail khi có `console.error`/`console.warn`.
+
+### 10.2. Việc TV3 cần xử lý (TV2 không sửa file của TV3)
+1. **Toast của `ChatSafetyActions` che nút Gửi và không tự tắt (đã tái hiện ở cả 360px và 1280px).** Toast dùng `fixed right-4 bottom-4`, trùng đúng vị trí nút Gửi của ô nhập, và chỉ biến mất khi bấm X hoặc đổi người chat. Cách sửa gọn nhất: bỏ state `toast` và khối JSX toast trong `ChatSafetyActions.jsx`, thay bằng `showToast(message, { type: 'success' })` từ `useToast()`. Khi đó `ChatSafetyActions.test.jsx` cần bọc `ToastProvider`.
+2. **Hàng 3 nút ở 360px tự xuống hai dòng** (Kiểm tra lừa đảo và Báo cáo ở dòng đầu, Chặn ở dòng sau). Vẫn dùng được, không cần sửa nếu không muốn. Nếu muốn gọn hơn: thu nhỏ `px` của nút hoặc chỉ hiện icon cho nút Báo cáo và Chặn ở màn hình dưới `sm`.
+3. **Không phát hiện lỗi tràn layout ở modal.** `PrivacyConfirmModal`, `ScamResultModal` và `ReportModal` đều nằm trọn trong màn hình và không tràn ngang ở 360px, 768px, 1280px.
+
+### 10.3. Hành vi mới của chat mà TV3 nên biết
+- Khi server trả `message_error` với `code: 'CONVERSATION_BLOCKED'`, `ChatPage` đặt `hasBlockedMe = true` cho người đang mở và khóa ô nhập ngay (trước đây phải tải lại danh sách).
+- Khung tin nhắn chỉ tự cuộn xuống khi người dùng đang ở gần đáy (80px) hoặc khi chính họ gửi tin; nếu không sẽ hiện nút "Tin nhắn mới".

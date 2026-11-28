@@ -62,3 +62,5 @@ Tài liệu này mô tả chi tiết cấu trúc **Frontend (React + Vite + Tail
 2. **Empty State:** Minh họa + text *"Chọn một cuộc trò chuyện để bắt đầu"* khi chưa chọn ai ở `ChatPage`.
 3. **Blocked State:** Khóa ô nhập tin nhắn và nút gửi ảnh, hiển thị thanh thông báo: *"Cuộc trò chuyện này đã bị chặn."*
 4. **Error Toast:** Hiển thị thông báo lỗi tiếng Việt rõ ràng khi mất mạng, upload ảnh sai định dạng, hoặc gọi API thất bại.
+   - Triển khai bằng toast dùng chung: `ToastProvider` và `useToast()` trong `frontend/src/context/ToastContext.jsx` (đã gắn trong `AppLayout`). Toast hiện ở giữa phía trên, dưới Navbar. Mất mạng và có mạng lại do `NetworkStatusToasts` báo.
+   - Lỗi gắn với một form (Login, Register) hoặc có nút "Thử lại" (tải danh sách, tải lịch sử) vẫn hiện ngay tại chỗ, không đi qua toast.

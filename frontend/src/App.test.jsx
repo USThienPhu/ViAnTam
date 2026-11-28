@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { mockApi as baseMockApi } from './test/mockApi';
 import { ADMIN, USER, renderApp, seedSession } from './test/renderApp';
@@ -38,6 +38,20 @@ describe('Điều hướng và phân quyền', () => {
     const nav = screen.getByRole('banner');
     expect(within(nav).getByText('demo_user')).toBeInTheDocument();
     expect(within(nav).getByRole('button', { name: /Đăng xuất/ })).toBeInTheDocument();
+  });
+
+  it('đã đăng nhập: mất mạng thì hiện toast cảnh báo, có mạng lại thì báo đã kết nối lại', async () => {
+    seedSession(USER);
+    mockApi({ 'GET /auth/me': () => ({ data: USER }) });
+    renderApp('/');
+    await screen.findByRole('heading', { name: 'Chọn một cuộc trò chuyện để bắt đầu' });
+
+    act(() => window.dispatchEvent(new Event('offline')));
+    expect(screen.getByRole('alert')).toHaveTextContent('Mất kết nối mạng.');
+
+    act(() => window.dispatchEvent(new Event('online')));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Đã kết nối mạng trở lại.');
   });
 
   it('trong lúc xác thực phiên đã lưu hiện trạng thái đang tải, chưa bị đá về /login', async () => {
