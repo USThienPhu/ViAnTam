@@ -45,6 +45,9 @@ app.use('/api', (req, res) => {
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({ message: 'Dữ liệu gửi lên không đúng định dạng JSON.', code: 'INVALID_JSON' });
+  }
   console.error('[error]', err);
   const status = err.status || 500;
   res.status(status).json({
@@ -65,6 +68,9 @@ async function start() {
   }
 }
 
-start();
+// Chỉ khởi động khi chạy trực tiếp (npm run dev / start). Khi test import file này thì không tự kết nối DB.
+if (require.main === module) {
+  start();
+}
 
 module.exports = { app, server, io };
