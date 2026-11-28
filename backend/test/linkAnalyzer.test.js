@@ -68,6 +68,19 @@ describe('analyzeLink', () => {
     }
   });
 
+  test('tên miền ngân hàng thật gần giống brand không bị gắn typosquatting', async () => {
+    for (const url of [
+      'https://vpbank.com.vn',
+      'https://tpbank.vn',
+      'https://hdbank.com.vn',
+      'https://abbank.vn',
+      'https://lpbank.com.vn',
+    ]) {
+      const r = await analyzeLink(url, NO_SB);
+      assert.deepEqual(r.flags, [], url);
+    }
+  });
+
   test('brand + từ khóa đăng nhập trên đuôi rủi ro', async () => {
     const r = await analyzeLink('http://vietcombank-login.top', NO_SB);
     assert.deepEqual(r.flags, ['suspicious_tld', 'typosquatting']);

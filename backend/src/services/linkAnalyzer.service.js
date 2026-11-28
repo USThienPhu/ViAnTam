@@ -12,6 +12,11 @@ const OFFICIAL = [
   'dichvucong.gov.vn',
 ];
 const BRANDS = ['momo', 'vietcombank', 'bidv', 'mbbank', 'techcombank', 'shopee', 'dichvucong'];
+// Tên ngân hàng/ví thật gần giống brand (ví dụ vpbank ~ mbbank): không so khoảng cách với các token này.
+const LEGIT_LOOKALIKE_TOKENS = new Set([
+  'vpbank', 'tpbank', 'hdbank', 'abbank', 'lpbank', 'acb', 'vib', 'shb', 'msb', 'ocb', 'scb',
+  'seabank', 'namabank', 'bacabank', 'vietinbank', 'agribank', 'sacombank', 'eximbank', 'zalopay',
+]);
 const SUSPICIOUS_TLDS = ['.xyz', '.top', '.tk', '.ml', '.ga', '.cf', '.vip', '.cc'];
 const SHORTENERS = ['bit.ly', 'tinyurl.com', 't.co', 'goo.gl', 'bom.so'];
 const PHISH_KEYWORDS = ['xacminh', 'xacthuc', 'login', 'support', 'hotro', 'verify'];
@@ -79,6 +84,7 @@ function isTyposquatting(host) {
     const maxDistance = brand.length < 6 ? 1 : 2;
     const tokenHit = tokens.some((token) => {
       if (token === brand) return true;
+      if (LEGIT_LOOKALIKE_TOKENS.has(token)) return false;
       if (token.length < brand.length - 1) return false;
       const d = levenshteinDistance(token, brand);
       return d >= 1 && d <= maxDistance;
