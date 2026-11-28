@@ -1,1 +1,13 @@
-﻿// TODO (TV3): Mongoose Block schema (docs/safety-admin-spec.md)
+const mongoose = require('mongoose');
+
+const blockSchema = new mongoose.Schema(
+  {
+    blockerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    blockedId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  },
+  { timestamps: true }
+);
+
+blockSchema.index({ blockerId: 1, blockedId: 1 }, { unique: true });
+
+module.exports = mongoose.models.Block || mongoose.model('Block', blockSchema);
