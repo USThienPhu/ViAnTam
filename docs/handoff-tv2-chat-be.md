@@ -59,7 +59,7 @@ Quy tắc chung (theo `AGENTS.md`): không đổi tên trường MongoDB, tên e
   const { userRoom } = require('../sockets/chat.socket');
   req.app.get('io').to(userRoom(targetUserId)).emit('user_flagged', { userId, isFlagged: true, reportCount });
   ```
-  hoặc `req.app.get('io').to(\`user_${targetUserId}\`).emit(...)`.
+  hoặc `req.app.get('io').to('user_' + targetUserId).emit(...)`.
 - `app.set('io', io)` đã có sẵn trong `app.js`.
 - Muốn **mọi người đang online** thấy banner cảnh báo ngay, emit `io.emit('user_flagged', ...)` (broadcast). Room chỉ báo cho đúng một người. Chọn cách nào là quyết định của TV3 và FE (`FlaggedBanner.jsx`), tên sự kiện `user_flagged` giữ như trong `docs/safety-admin-spec.md`.
 - Socket event hiện có (không đổi tên):
