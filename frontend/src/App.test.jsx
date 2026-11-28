@@ -75,12 +75,15 @@ describe('Điều hướng và phân quyền', () => {
     expect(within(nav).getByRole('link', { name: 'Quản trị' })).toBeInTheDocument();
   });
 
-  it('route /history hiển thị trang tạm "Lịch sử kiểm tra"', async () => {
+  it('route /history hiển thị trang Lịch sử kiểm tra', async () => {
     seedSession(USER);
-    mockApi({ 'GET /auth/me': () => ({ data: USER }) });
+    mockApi({
+      'GET /auth/me': () => ({ data: USER }),
+      'GET /scam-check/history': () => ({ data: [] }),
+    });
     renderApp('/history');
-    expect(await screen.findByRole('heading', { name: 'Lịch sử kiểm tra' })).toBeInTheDocument();
-    expect(screen.getByText('Tính năng này đang được phát triển.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Lịch sử kiểm tra' })).toBeInTheDocument();
+    expect(await screen.findByText('Bạn chưa thực hiện lần kiểm tra nào.')).toBeInTheDocument();
   });
 
   it('route /tips hiển thị trang Mẹo an toàn', async () => {
