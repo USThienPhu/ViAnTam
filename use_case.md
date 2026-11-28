@@ -1,6 +1,6 @@
-# Danh sách Use Case — ScamGuard Chat
+# Danh sách Use Case — AIthena
 
-Tài liệu mô tả toàn bộ các Use Case của hệ thống **ScamGuard Chat** phục vụ thiết kế và kiểm thử.
+Tài liệu mô tả toàn bộ các Use Case của hệ thống **AIthena** phục vụ thiết kế và kiểm thử.
 
 ## 1. Các tác nhân (Actors)
 - **Người dùng (User):** Người sử dụng ứng dụng chat và công cụ AI kiểm tra lừa đảo.
@@ -18,7 +18,7 @@ flowchart LR
     Admin(["Quản trị viên (Admin)"])
     AI(["AWS Custom LLM"])
 
-    subgraph ScamGuard["Hệ thống ScamGuard Chat"]
+    subgraph ScamGuard["Hệ thống AIthena"]
         UC01["UC-01: Đăng ký / Đăng nhập"]
         UC02["UC-02: Chat 1-1 & Gửi ảnh QR"]
         UC03["UC-03: Kiểm tra lừa đảo (On-demand)"]

@@ -1,6 +1,6 @@
 # Hướng dẫn dành cho AI Agents (`AGENTS.md`)
 
-Tài liệu này là hướng dẫn dành cho AI Coding Agent khi làm việc trong dự án **ScamGuard Chat**.
+Tài liệu này là hướng dẫn dành cho AI Coding Agent khi làm việc trong dự án **AIthena**.
 
 > [!NOTE]
 > **Khi thực hiện các thao tác viết hoặc chỉnh sửa code:** Hãy đọc **`convention.md`** ở thư mục gốc để đảm bảo tuân thủ đúng quy ước đặt tên, định dạng API/lỗi, Git workflow và nguyên tắc bảo mật của dự án.

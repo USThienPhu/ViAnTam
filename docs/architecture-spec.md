@@ -1,4 +1,4 @@
-# Architecture & Shared Specification — ScamGuard Chat
+# Architecture & Shared Specification — AIthena
 
 Tài liệu này mô tả kiến trúc tổng thể, cấu trúc thư mục, biến môi trường và các quy ước dùng chung cho toàn bộ các module trong thư mục `docs/`.
 
