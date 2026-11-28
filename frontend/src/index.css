@@ -1,1 +1,60 @@
-﻿/* TODO (TV2): TailwindCSS & CSS Variables (docs/theme.md) */
+﻿@import '@fontsource-variable/plus-jakarta-sans';
+@import '@fontsource-variable/jetbrains-mono';
+@import 'tailwindcss';
+
+/*
+ * Design tokens của AIthena (nguồn: docs/theme.md).
+ * Component chỉ dùng class sinh từ các token này, không viết mã hex trực tiếp.
+ */
+@theme {
+  /* Màu thương hiệu */
+  --color-brand-primary: #d82d8b;
+  --color-brand-hover: #b91c72;
+  --color-brand-soft: #fdf2f8;
+  --color-brand-border: #fbcfe8;
+
+  /* Màu mức độ rủi ro AI: thấp (< 30) */
+  --color-risk-low-bg: #ecfdf5;
+  --color-risk-low-text: #065f46;
+  --color-risk-low-border: #6ee7b7;
+  --color-risk-low-accent: #10b981;
+
+  /* Màu mức độ rủi ro AI: trung bình (30 - 69) */
+  --color-risk-medium-bg: #fffbeb;
+  --color-risk-medium-text: #92400e;
+  --color-risk-medium-border: #fcd34d;
+  --color-risk-medium-accent: #f59e0b;
+
+  /* Màu mức độ rủi ro AI: cao (>= 70 hoặc trúng Blacklist) */
+  --color-risk-high-bg: #fef2f2;
+  --color-risk-high-text: #991b1b;
+  --color-risk-high-border: #fca5a5;
+  --color-risk-high-accent: #ef4444;
+
+  /* Font chữ */
+  --font-sans: 'Plus Jakarta Sans Variable', 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-slate-50);
+    color: var(--color-slate-900);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand-primary);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

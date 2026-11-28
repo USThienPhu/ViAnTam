@@ -62,24 +62,34 @@ Tài liệu này quy định **Theme chủ đạo** cho toàn bộ giao diện *
 
 ---
 
-## 5. CSS Variables mẫu (`client/src/index.css`)
-```css
-@layer base {
-  :root {
-    --brand-primary: #D82D8B;
-    --brand-hover: #B91C72;
-    --brand-soft: #FDF2F8;
-    --bg-app: #F8FAFC;
-    --bg-surface: #FFFFFF;
-    --risk-low: #10B981;
-    --risk-medium: #F59E0B;
-    --risk-high: #EF4444;
-  }
+## 5. Tailwind Tokens (`frontend/src/index.css`)
+Dự án dùng **Tailwind CSS v4**. Các token màu và font được khai báo trong khối `@theme` của `frontend/src/index.css`. Component **chỉ dùng các class bên dưới**, không viết mã hex trực tiếp (ví dụ không dùng `bg-[#D82D8B]`). Màu trung tính dùng class `slate-*` mặc định của Tailwind như mục 2.2.
 
-  body {
-    background-color: var(--bg-app);
-    color: #0F172A;
-    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
-  }
-}
-```
+### 5.1. Màu thương hiệu
+| Token | Class sinh ra | Hex |
+|---|---|---|
+| `--color-brand-primary` | `bg-brand-primary`, `text-brand-primary` | `#D82D8B` |
+| `--color-brand-hover` | `hover:bg-brand-hover` | `#B91C72` |
+| `--color-brand-soft` | `bg-brand-soft` | `#FDF2F8` |
+| `--color-brand-border` | `border-brand-border` | `#FBCFE8` |
+
+### 5.2. Màu mức độ rủi ro AI
+Mỗi mức có 4 token theo mẫu `risk-{low|medium|high}-{bg|text|border|accent}`. Ví dụ: `bg-risk-high-bg`, `text-risk-high-text`, `border-risk-high-border`, `bg-risk-high-accent`.
+
+| Mức | `bg` | `text` | `border` | `accent` |
+|---|---|---|---|---|
+| `low` | `#ECFDF5` | `#065F46` | `#6EE7B7` | `#10B981` |
+| `medium` | `#FFFBEB` | `#92400E` | `#FCD34D` | `#F59E0B` |
+| `high` | `#FEF2F2` | `#991B1B` | `#FCA5A5` | `#EF4444` |
+
+> Khi chọn class theo mức rủi ro, hãy viết đầy đủ tên class trong một map (ví dụ `{ low: 'bg-risk-low-bg', ... }`). Không ghép chuỗi động như `` `bg-risk-${level}-bg` ``, vì Tailwind sẽ không sinh ra class đó.
+
+### 5.3. Font chữ
+- `font-sans` (mặc định cho `body`): Plus Jakarta Sans.
+- `font-mono`: JetBrains Mono, dùng cho số tài khoản, mã BIN, điểm số và URL.
+- Hai font được cài qua gói `@fontsource-variable/*` và import ở đầu `index.css`, không gọi Google Fonts CDN.
+
+### 5.4. Quy tắc nền tảng
+- Màu nền và chữ mặc định của `body`: `slate-50` và `slate-900`.
+- Viền focus toàn cục khi dùng bàn phím: `outline` 2px màu `brand-primary`.
+- Người dùng bật "giảm chuyển động" của hệ điều hành sẽ không thấy animation và transition.
